@@ -1,185 +1,311 @@
 ﻿using System;
 using System.Collections.Generic;
-using System.Diagnostics;
 using System.IO;
 using System.Reflection;
-using System.Runtime.CompilerServices;
-using System.Runtime.InteropServices;
-using System.Runtime.Versioning;
 using BepInEx;
 using BepInEx.Logging;
 using HarmonyLib;
 using UnityEngine;
 using UnityEngine.SceneManagement;
 using System.Linq;
+using System.Net.Http;
+using System.Text.RegularExpressions;
+using System.Threading.Tasks;
+using BepInEx.Configuration;
+using ImageMagick;
+using JetBrains.Annotations;
+using MonoMod.Utils;
+using Unity.VisualScripting;
 
-namespace RandomPaintingSwap
-{
-    [BepInPlugin("ch.gabzdev.randompaintingswap", "Random Painting Swap", "1.1.0")]
-    public class Plugin : BaseUnityPlugin
-    {
-        private const string IMAGE_FOLDER_NAME = "RandomPaintingSwap_Images";
+namespace RandomPaintingSwap;
 
-        public static Plugin Instance { get; private set; }
-        internal static new ManualLogSource Logger;
-        // Liste des material chargees
-        public static List<Material> loadedMaterials = new List<Material>();
-        // Materiaux cibles
-        public static readonly HashSet<string> targetMaterials = new HashSet<string>
-        {
-            "Painting_H_Landscape",
-            "Painting_V_Furman",
-            "painting teacher02",
-            "Painting_S_Tree"
-        };
-        // Paterne fichier image
-        public static readonly HashSet<string> imagePatterns = new HashSet<string>
-        {
-            "*.png",
-            "*.jpg",
-            "*.jpeg"
-        };
+[BepInPlugin(MODID, NAME, VERSION)]
+public class Plugin : BaseUnityPlugin {
+    public const string MODID = "io.wispforest.painting_swapper";
+    public readonly List<string> RAW_NAMES = ["painting_swapper_images", "RandomPaintingSwap_Images", "CustomPaintings"];
+    public const string NAME = "Painting Swapper";
+    public const string VERSION = "1.0.0";
 
-        private readonly Harmony harmony = new Harmony("ch.gabzdev.randompaintingswap");
-        private string imagesDirectoryPath;
+    public static Plugin Instance { get; private set; }
+    
+    internal static new ManualLogSource Logger;
+    
+    // Target materials
+    public static readonly List<string> DEFAULT_TEXTURE_TARGETS = ["Painting_H_Landscape", "Painting_V_Furman", "painting teacher01", "painting teacher02", "painting teacher03", "painting teacher04", "Painting_S_Tree" ];
+    // Image file pattern
+    public static readonly HashSet<string> imagePatterns = ["*.png", "*.jpg", "*.jpeg", "*.gif"];
 
-        /**
-         * Init Plugin
-         */
-        private void Awake()
-        {
-            Instance = this;
+    private readonly Harmony harmony = new (MODID);
+    
+    // List of loaded materials
+    public Dictionary<string, Material> loadedMaterials = [];
 
-            // Plugin startup logic
-            Logger = base.Logger;
-            Logger.LogInfo($"Plugin Random Painting Swap is loaded!");
+    private ConfigEntry<String> PICTURE_TEXTURE_TARGETS;
+    
+    private ConfigEntry<String> DIRECTORY_LOCATION;
+    private ConfigEntry<String> PHOTO_LOCATION;
+    
+    public List<String> PictureTextureTargets() => new (PICTURE_TEXTURE_TARGETS.Value.Split(','));
+    
+    public List<String> DirectoryLocations() => new (DIRECTORY_LOCATION.Value.Split(','));
+    public List<String> PhotoLocations() => new (PHOTO_LOCATION.Value.Split(','));
+    
+    /**
+     * Init Plugin
+     */
+    private async void Awake() {
+        MagickNET.Initialize();
+        
+        Instance = this;
 
-            harmony.PatchAll(Assembly.GetExecutingAssembly());
+        // Plugin startup logic
+        Logger = base.Logger;
+        Logger.LogInfo($"Plugin {NAME} is loaded!");
 
-            CreateImagesDirectory();
-            LoadImagesFromDirectory();
-        }
+        harmony.PatchAll(Assembly.GetExecutingAssembly());
 
-        /**
-         * Cree un dossier "IMAGE_FOLDER_NAME" si n'existe pas
-         */
-        private void CreateImagesDirectory()
-        {
-            string pluginDirectory = Path.GetDirectoryName(System.Reflection.Assembly.GetExecutingAssembly().Location);
+        Config.Bind("Test", "Test", false, new ConfigDescription("Testing Stuff"));
+        
+        PICTURE_TEXTURE_TARGETS = Config.Bind("Paintings", "PaintingTextures", DEFAULT_TEXTURE_TARGETS.Join(delimiter: ","), new ConfigDescription("All texture targets to replace with custom images"));
+        
+        DIRECTORY_LOCATION = Config.Bind("Photos", "DirectoryLocations", "", new ConfigDescription("Location of all directories to be looked at for images"));
+        PHOTO_LOCATION = Config.Bind("Photos", "RawImageLocations", "", new ConfigDescription("Location of all photos to be downloaded"));
+        
+        //Config.Save();
+        
+        var directories = new List<String>();
+        
+        string pluginDirectory = Path.GetDirectoryName(Assembly.GetExecutingAssembly().Location);
 
-            imagesDirectoryPath = Path.Combine(pluginDirectory, IMAGE_FOLDER_NAME);
+        string pluginsStorageArea = Path.GetDirectoryName(pluginDirectory);
+        
+        foreach (var directory in Directory.GetDirectories(pluginsStorageArea)) {
+            foreach (var rawName in RAW_NAMES) {
+                var possibleImageDirectory = Path.Combine(directory, rawName);
 
-            if (!Directory.Exists(imagesDirectoryPath))
-            {
-                Directory.CreateDirectory(imagesDirectoryPath);
-                Logger.LogInfo($"Dossier {imagesDirectoryPath} creer avec succes !");
-                return;
-            }
-
-            Logger.LogInfo($"Dossier {imagesDirectoryPath} detecte !");
-        }
-
-        /**
-         * Charge les images du dossier "IMAGE_FOLDER_NAME"
-         */
-        private void LoadImagesFromDirectory()
-        {
-            if (!Directory.Exists(imagesDirectoryPath))
-            {
-                Logger.LogWarning($"Le dossier {imagesDirectoryPath} n'existe pas !");
-                return;
-            }
-
-            List<string> imageFiles = imagePatterns.SelectMany(pattern => Directory.GetFiles(imagesDirectoryPath, pattern)).ToList();
-
-            if (!imageFiles.Any())
-            {
-                Logger.LogWarning($"Aucune image trouvee dans le dossier {imagesDirectoryPath}");
-                return;
-            }
-
-            foreach (var imageFile in imageFiles)
-            {
-                Texture2D texture = LoadTextureFromFile(imageFile);
-
-                if (texture == null)
-                {
-                    Logger.LogWarning($"Erreur chargement image : {imageFile}");
-                    continue;
+                if (Directory.Exists(directory)) {
+                    directories.Add(possibleImageDirectory);
                 }
-
-                // creer le Material avec la texture
-                Material material = new Material(Shader.Find("Standard")) { mainTexture = texture };
-                loadedMaterials.Add(material); // ajout dans la liste
-
-                Logger.LogInfo($"Image chargée et Material créé : {Path.GetFileNameWithoutExtension(imageFile)}");
             }
-
-            Logger.LogInfo($"Total Images : {imageFiles.Count}");
         }
+        
+        directories.Add(Path.Combine(pluginDirectory, RAW_NAMES[0]));
+        directories.AddRange(DirectoryLocations());
+        
+        CreateImagesDirectory(directories);
+        await LoadImagesFromDirectoryAndWeb(directories);
+    }
 
-        /**
-         * Charge une texture d'un fichier png en memory
-         */
-        private Texture2D LoadTextureFromFile(string filePath)
-        {
-            byte[] fileData = File.ReadAllBytes(filePath);
-            Texture2D texture = new Texture2D(2, 2);
+    /**
+     * Create an "IMAGE_FOLDER_NAME" folder if it doesn't exist
+     */
+    private void CreateImagesDirectory(List<String> directories) {
+        foreach (var directory in directories) {
+            try {
+                if (!Directory.Exists(directory)) {
+                    Directory.CreateDirectory(directory);
+                    Logger.LogInfo($"Folder {directory} created successfully!");
+                } else {
+                    Logger.LogInfo($"Folder {directory} detected!)");
+                }
+            } catch (Exception e) {
+                Logger.LogError($"Unable to create directory [{directory}] for the given reason:");
+                Logger.LogError(e);
+            }
+        }
+    }
 
-            if (texture.LoadImage(fileData))
-            {
-                texture.Apply();
-                return texture;
+    /**
+     * Load images from the "IMAGE_FOLDER_NAME" folder
+     */
+    private async Task LoadImagesFromDirectoryAndWeb(List<String> directories) {
+        Logger.LogInfo($"Loading images from directory [{directories}]");
+        foreach (var directory in directories) {
+            if (!Directory.Exists(directory)) {
+                Logger.LogWarning($"The folder {directory} does not exist!");
+                continue;
             }
 
-            texture = null; // clear texture
+            List<string> directoryimageFiles = imagePatterns.SelectMany(pattern => Directory.GetFiles(directory, pattern)).ToList();
+
+            if (!directoryimageFiles.Any()) {
+                Logger.LogWarning($"No images found in the folder {directory}");
+                continue;
+            }
+            
+            loadedMaterials.AddRange<KeyValuePair<string, Material>>(
+                directoryimageFiles
+                    .Select(imageFile => LoadTextureFromFile(imageFile))
+                    .Where(entry => entry != null)
+                    .Select(entry => entry.Value!)
+                    .ToList()
+                );
+        }
+        
+        Logger.LogInfo($"Loading images from the web: [{PhotoLocations()}]");
+        
+        loadedMaterials.AddRange(await LoadImagesFromTheWeb(PhotoLocations()));
+        
+        Logger.LogInfo($"Total Images : {loadedMaterials}");
+    }
+
+    [CanBeNull]
+    private Material CreateMaterial(string fileURI, [CanBeNull] Texture2D texture) {
+        if (texture == null) return null;
+        
+        Logger.LogInfo($"Image loaded and Material created: {Path.GetFileNameWithoutExtension(fileURI)}");
+        
+        return new Material(Shader.Find("Standard")) { mainTexture = texture };
+    }
+
+    private KeyValuePair<string, Material>? LoadTextureFromFile(string filePath) {
+        try {
+            byte[] fileData = File.ReadAllBytes(filePath);
+
+            return LoadTextureFromBytes(filePath, fileData);
+        } catch (Exception e) {
+            Logger.LogError($"An error has a occured when trying to read image file locally: {e.Message}");
+        }
+        
+        return null;
+    }
+
+    /**
+     * Loads a texture from a png file into memory
+     */
+    [CanBeNull]
+    private KeyValuePair<string, Material>? LoadTextureFromBytes(string fileURI, byte[] fileData) {
+        Texture2D texture = new Texture2D(2, 2);
+
+        if (texture.LoadImage(fileData)) {
+            texture.Apply();
+        } else {
+            Logger.LogError($"Unable to load the given image: {fileURI}");
             return null;
         }
+        
+        return KeyValuePair.Create(Path.GetFileName(fileURI), CreateMaterial(fileURI, texture));
+    }
 
-        [HarmonyPatch(typeof(LoadingUI), "LevelAnimationComplete")]
-        public class PatchLoadingUI
-        {
-            [HarmonyPostfix]
-            /**
-             * Remplacement des images de base par les images du plugin
-             */
-            private static void Postfix()
-            {
-                Logger.LogInfo("Remplacement des images de base par les images du plugin");
+    private async Task<Dictionary<string, Material>> LoadImagesFromTheWeb(List<string> images) {
+        Dictionary<string, Material> loadedMaterials = new Dictionary<string, Material>();
+        
+        using (var httpClient = new HttpClient()) {
+            foreach (var entry in CategorizeUrls(images)) {
+                var urls = entry.Value;
+                var type = entry.Key;
+                
+                foreach (var imageUrl in urls) {
+                    try {
+                        byte[] imageBytes = await httpClient.GetByteArrayAsync(imageUrl);
 
-                Scene activeScene = SceneManager.GetActiveScene();
-                // Liste de tous les objects de la scene
-                List<GameObject> list = activeScene.GetRootGameObjects().ToList();
+                        KeyValuePair<string, Material>? textureData = null;
+                        
+                        if (type.Equals("Other")) {
+                            try {
+                                using (var converter = new MagickImage(imageBytes)) {
+                                    converter.Format = MagickFormat.Png;
+                    
+                                    using (var memoryStream = new MemoryStream()) {
+                                        converter.Write(memoryStream);
 
-                // Parcours de tous les objects de la scene
-                foreach (GameObject gameObject in list)
-                {
-                    // Parcours de tous les MeshRenderer de l'object
-                    foreach (MeshRenderer mesh in gameObject.GetComponentsInChildren<MeshRenderer>())
-                    {
-                        // stocker les materiaux partager du meshrenderer
-                        Material[] sharedMaterials = mesh.sharedMaterials;
-
-                        if (sharedMaterials == null)
-                        {
-                            continue;
+                                        textureData = LoadTextureFromBytes(imageUrl, memoryStream.ToArray());
+                                    }
+                                }
+                            } catch (MagickException magickEx) {
+                                Logger.LogError($"Magick.NET Error: {magickEx.Message}");
+                            } 
+                        } else {
+                            textureData = LoadTextureFromBytes(imageUrl, imageBytes);
                         }
 
-                        // Parcours de tous les materiaux partager du meshrenderer
-                        for (int i = 0; i < sharedMaterials.Length; i++)
-                        {
-                            Material material = sharedMaterials[i];
-                            if (material != null && targetMaterials.Contains(material.name) && loadedMaterials.Count > 0)
-                            {
-                                //Logger.LogInfo($"---------------------------> {material.name}");
-
-                                sharedMaterials[i] = loadedMaterials[UnityEngine.Random.Range(0, loadedMaterials.Count)];
-                            }
+                        if (textureData == null) {
+                            Logger.LogError($"Unable to load the image {imageUrl}");
+                        } else {
+                            loadedMaterials.Add(textureData?.Key, textureData?.Value);
                         }
-
-                        // Appliquer les materiaux custom
-                        mesh.sharedMaterials = sharedMaterials;
+                    } catch (HttpRequestException httpEx)  {
+                        Logger.LogError($"HTTP Request Error: {httpEx.Message}");
+                    } catch (Exception ex)  {
+                        Logger.LogError($"An error occurred: {ex.Message}");
                     }
+                }
+            }
+        }
+
+        return loadedMaterials;
+    }
+    
+    public static Dictionary<string, List<string>> CategorizeUrls(List<string> urls) {
+        var categories = new Dictionary<string, List<string>>();
+
+        // Add a default category for non-image URLs
+        categories.Add("Other", new List<string>());
+
+        // Precompile regex patterns for efficiency
+        var regexPatterns = imagePatterns.Select(pattern => new {
+            Pattern = pattern,
+            Regex = new Regex(Regex.Escape(pattern).Replace("\\*", ".*"), RegexOptions.IgnoreCase)
+        }).ToList();
+
+        foreach (var url in urls) {
+            bool categorized = false;
+
+            foreach (var regexPattern in regexPatterns) {
+                if (regexPattern.Regex.IsMatch(url)) {
+                    if (!categories.ContainsKey(regexPattern.Pattern)) {
+                        categories[regexPattern.Pattern] = new List<string>();
+                    }
+                    categories[regexPattern.Pattern].Add(url);
+                    categorized = true;
+                    break;
+                }
+            }
+
+            if (!categorized) categories["Other"].Add(url);
+        }
+
+        return categories;
+    }
+
+    [HarmonyPatch(typeof(LoadingUI), "LevelAnimationComplete")]
+    public class PatchLoadingUI {
+        
+        /**
+         * Replacing base images with plugin images
+         */
+        [HarmonyPostfix]
+        private static void Postfix() {
+            Logger.LogInfo("Replacing base images with plugin images");
+
+            Scene activeScene = SceneManager.GetActiveScene();
+            // List of all objects in the scene
+            List<GameObject> list = activeScene.GetRootGameObjects().ToList();
+
+            var materials = Instance.loadedMaterials.Values.ToList();
+            var pictureTargets = Instance.PictureTextureTargets();
+            
+            // Traversing all objects in the scene
+            foreach (GameObject gameObject in list) {
+                // Traversing all MeshRenderers of the object
+                foreach (MeshRenderer mesh in gameObject.GetComponentsInChildren<MeshRenderer>()) {
+                    // Storing the shared materials of the MeshRenderer
+                    Material[] sharedMaterials = mesh.sharedMaterials;
+
+                    if (sharedMaterials == null) continue;
+
+                    // Traversing all shared materials of the MeshRenderer
+                    for (int i = 0; i < sharedMaterials.Length; i++) {
+                        Material material = sharedMaterials[i];
+                        if (material != null && pictureTargets.Contains(material.name) && materials.Count() > 0) {
+                            //Logger.LogInfo($"---------------------------> {material.name}");
+                            
+                            sharedMaterials[i] = materials[UnityEngine.Random.Range(0, materials.Count)];
+                        }
+                    }
+
+                    // Applying custom materials
+                    mesh.sharedMaterials = sharedMaterials;
                 }
             }
         }
