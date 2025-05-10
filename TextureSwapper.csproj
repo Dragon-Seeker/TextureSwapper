@@ -1,0 +1,80 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <TargetFramework>netstandard2.1</TargetFramework>
+<!--    <TargetFrameworks>net7.0;netstandard2.1</TargetFrameworks>-->
+    <AssemblyName>TextureSwapper</AssemblyName>
+    <Product>Texture Swapper</Product>
+    <Version>1.0.18</Version>
+    <Nullable>enable</Nullable>
+    <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
+    <LangVersion>12</LangVersion>
+    <RestoreAdditionalProjectSources>
+      https://api.nuget.org/v3/index.json;
+      https://nuget.bepinex.dev/v3/index.json;
+      https://nuget.samboy.dev/v3/index.json
+    </RestoreAdditionalProjectSources>
+    <RootNamespace>io.wispforest.textureswapper</RootNamespace>
+    <GameRoot>E:\Programs\Steam\steamapps\common\REPO</GameRoot>
+    <LibDir>.\libs</LibDir>
+<!--    <SolutionDir Condition="'$(SolutionDir)' == ''">$(MSBuildThisFileDirectory)..\</SolutionDir>-->
+    <PublishOutputDir>$(MSBuildThisFileDirectory)PublishOutput</PublishOutputDir>
+    <AssetsDir>$(MSBuildThisFileDirectory)assets</AssetsDir>
+    <Net7OrUp>false</Net7OrUp>
+    <Net7OrUp Condition="'$(TargetFramework)' == 'net(?:[7-9]\d*|[1-9]\d+)\.0'">true</Net7OrUp>
+  </PropertyGroup>
+  
+  <!-- Global References -->
+  <ItemGroup>
+    <Folder Include="obj\Debug\net7.0\" />
+    <Folder Include="PublishOutput\" />
+    <PackageReference Include="Microsoft.CSharp" Version="4.7.0" />
+    <PackageReference Include="BepInEx.Analyzers" Version="1.*" PrivateAssets="all" />
+    <PackageReference Include="BepInEx.Core" Version="5.*" />
+    <PackageReference Include="BepInEx.PluginInfoProps" Version="2.*" />
+    <PackageReference Include="HarmonyX" Version="2.10.2" />
+    <PackageReference Include="UnityEngine" Version="5.6.1" />
+    <PackageReference Include="UnityEngine.Modules" Version="2022.3.21" IncludeAssets="compile" />
+    <PackageReference Include="Zehs.REPOLib" Version="1.5.0" />
+    <PackageReference Include="Magick.NET-Q8-x64" Version="14.5.0" />
+    <PackageReference Include="MonoMod" Version="22.7.31.1" />
+    <PackageReference Include="Newtonsoft.Json" Version="13.0.3" />
+    <PackageReference Include="FFMpegCore" Version="5.2.0"/>
+    <PackageReference Include="NAudio" Version="2.0.1" />
+    
+    <Reference Include="Assembly-CSharp">
+        <HintPath>$(GameRoot)\REPO_Data\Managed\Assembly-CSharp.dll</HintPath>
+    </Reference>
+    <Reference Include="MenuLib">
+        <HintPath>$(LibDir)nickklmao-MenuLib-2.1.3\MenuLib.dll</HintPath>
+    </Reference>
+    <Reference Include="REPOConfig">
+        <HintPath>$(LibFolder)nickklmao-REPOConfig-1.1.7\REPOConfig.dll</HintPath>
+    </Reference>
+  </ItemGroup>
+  
+  <ItemGroup Condition="$(Net7OrUp) == true">
+    <Compile Include="obj\Debug\net7.0\MyPluginInfo.cs"/>
+    <Reference Include="Endec">
+      <HintPath>$(MSBuildThisFileDirectory)endec\net7.0\Endec.dll</HintPath>
+    </Reference>
+  </ItemGroup>
+
+  <ItemGroup Condition="$(Net7OrUp) == false">
+    <Compile Include="obj\Debug\netstandard2.1\MyPluginInfo.cs"/>
+    <Reference Include="Endec">
+      <HintPath>$(AssetsDir)Endec.dll</HintPath>
+    </Reference>
+  </ItemGroup>
+  
+  <ItemGroup Condition="'$(TargetFramework.TrimEnd(`0123456789`))' == 'net'">
+    <PackageReference Include="Microsoft.NETFramework.ReferenceAssemblies" Version="1.0.2" PrivateAssets="all" />
+  </ItemGroup>
+
+  <Target Name="RunCompressScript" AfterTargets="Build">
+    <PropertyGroup>
+      <ProjectDir>$(MSBuildThisFileDirectory)\</ProjectDir>
+      <RealTargetDir>$(TargetDir)\</RealTargetDir>
+    </PropertyGroup>
+    <Exec Command="powershell -File &quot;$(MSBuildProjectDirectory)\PublishTask.ps1&quot; -PublishOutputDir &quot;$(PublishOutputDir)&quot; -ProjectDir &quot;$(ProjectDir)&quot; -TargetDir &quot;$(RealTargetDir)&quot; -AssemblyName &quot;$(AssemblyName)&quot; -Version &quot;$(Version)&quot;" />
+  </Target>
+</Project>
