@@ -1,0 +1,10 @@
+{
+  "name": "Texture Swapper",
+  "version_number": "$(version)",
+  "website_url": "https://blodhgarm.io/",
+  "description": "This mod is based on Custom Paintings and allows for the ability to replace Various Textured Items (Sellable or Static) either by end users or other plugins.",
+  "dependencies": [
+    "BepInEx-BepInExPack-5.4.2100",
+    "Zehs-REPOLib-1.5.0"
+  ]
+}
