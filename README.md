@@ -25,7 +25,11 @@ The following is the currently supported formats to swap textures and other asse
 #### Image Formats
 - `.png`
 - `.jpg/.jpeg`
-- `.webp`
+- `.bmp`
+- `.tiff`
+- `.psd`
+- `.webp` (Converted to `.png` internally)
+- `.svg` (Converted to `.png` internally)
 - `.gif` (Note that all gifs are converted to webm's as such provides better performance with playback and file size
 
 #### Video Formats
