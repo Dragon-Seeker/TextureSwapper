@@ -146,6 +146,13 @@ public class Plugin : BaseUnityPlugin {
       // Register builtin provided query types
       MediaQueryTypeRegistry.register<LocalMediaQueryType, LocalMediaQuery, LocalMediaQueryResult>(LocalMediaQueryType.INSTANCE);
       MediaQueryTypeRegistry.register<StaticWebQueryType, StaticWebQuery, StaticWebQueryResult>(StaticWebQueryType.INSTANCE);
+      Logger.LogInfo($"Plugin {SwapperPluginInfo.PLUGIN_NAME} loaded Successfully!");
+   }
+
+   public void Start() {
+      string pluginFolder = Path.GetDirectoryName(Assembly.GetExecutingAssembly().Location)!;
+      
+      Logger.LogInfo($"Plugin {SwapperPluginInfo.PLUGIN_NAME} starting!");
       
       var typeToQueries = new Dictionary<Identifier, IList<MediaQuery>>();
 
@@ -223,8 +230,8 @@ public class Plugin : BaseUnityPlugin {
       });
       
       // --
-
-      Logger.LogInfo($"Plugin {SwapperPluginInfo.PLUGIN_NAME} loaded Successfully!");
+      
+      Logger.LogInfo($"Plugin {SwapperPluginInfo.PLUGIN_NAME} started Successfully!");
    }
    
    private void Update() {
