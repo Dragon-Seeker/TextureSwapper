@@ -84,8 +84,15 @@ public static class MediaFormats {
     static MediaFormats(){
         registerFormat(PNG.INSTANCE);
         registerFormat(JPEG.INSTANCE);
-        registerFormat(GIF.INSTANCE);
+        registerFormat(BMP.INSTANCE);
+        registerFormat(TIFF.INSTANCE);
+        registerFormat(PSD.INSTANCE);
+        
+        registerFormat(SVG.INSTANCE);
         registerFormat(WEBP.INSTANCE);
+        
+        registerFormat(GIF.INSTANCE);
+        
         registerFormat(WEBM.INSTANCE);
         registerFormat(MP4.INSTANCE);
         registerFormat(MP3.INSTANCE);
@@ -200,6 +207,116 @@ public class WEBP : MediaFormat {
         });
 
         return new DelayedMeshSwapper(id, true);
+    }
+}
+
+public class SVG : MediaFormat {
+    public static readonly SVG INSTANCE = new SVG();
+    
+    public override string name() => "svg";
+    
+    public override string primaryExtension() => "svg";
+    public override List<string> additionalExtensions() => [];
+    
+    public override MediaType getType() => MediaType.IMAGE;
+    
+    public override ISet<MagickFormat> getFormats() => new ReadOnlySet<MagickFormat>(MagickFormat.Svg);
+
+    public override SwapperImpl? decodeData(Identifier id, RawMediaData data) {
+        MultiThreadHelper.run(ENCODING_GROUP, () => {
+            var hasCachedFile = data.attemptToCacheFile(bytes => {
+                try {
+                    using var image = new MagickImage(bytes);
+                    // Set the output format to PNG
+                    image.Format = MagickFormat.Png;
+
+                    using var memoryStream = new MemoryStream();
+                    image.Write(memoryStream);
+
+                    return memoryStream.ToArray();
+                }
+                catch (MagickException ex) {
+                    Plugin.logIfDebugging(source => source.LogError($"SVG threw a magic exception [{data.url}]: {ex.Message}"));
+
+                    return null;
+                }
+            });
+
+            SwapperImpl? handler = null;
+            
+            if (hasCachedFile) {
+                var material = MaterialUtils.loadMaterialFromBytes(data.getBytes(), id);
+                
+                handler = material is not null ? new MaterialSwapper(id, material) : null;
+            }
+
+            MediaSwapperStorage.storeHandler(id, data.mediaInfo, handler);
+        });
+
+        return new DelayedMeshSwapper(id, true);
+    }
+}
+
+public class BMP : MediaFormat {
+    public static readonly BMP INSTANCE = new BMP();
+    
+    public override string name() => "bmp";
+    
+    public override string primaryExtension() => "bmp";
+    public override List<string> additionalExtensions() => [];
+    
+    public override MediaType getType() => MediaType.IMAGE;
+    
+    public override ISet<MagickFormat> getFormats() => new ReadOnlySet<MagickFormat>(MagickFormat.Bmp);
+
+    public override SwapperImpl? decodeData(Identifier id, RawMediaData data) {
+        data.attemptToCacheFile();
+        
+        var material = MaterialUtils.loadMaterialFromBytes(data);
+        
+        return material is not null ? new MaterialSwapper(id, material) : null;
+    }
+}
+
+public class PSD : MediaFormat {
+    public static readonly PSD INSTANCE = new PSD();
+    
+    public override string name() => "psd";
+    
+    public override string primaryExtension() => "psd";
+    public override List<string> additionalExtensions() => [];
+    
+    public override MediaType getType() => MediaType.IMAGE;
+    
+    public override ISet<MagickFormat> getFormats() => new ReadOnlySet<MagickFormat>(MagickFormat.Psd);
+
+    public override SwapperImpl? decodeData(Identifier id, RawMediaData data) {
+        data.attemptToCacheFile();
+        
+        var material = MaterialUtils.loadMaterialFromBytes(data);
+        
+        return material is not null ? new MaterialSwapper(id, material) : null;
+    }
+}
+
+public class TIFF : MediaFormat {
+    public static readonly TIFF INSTANCE = new TIFF();
+    
+    public override string name() => "tiff";
+    
+    public override string primaryExtension() => "tiff";
+    public override List<string> additionalExtensions() => [];
+    
+    public override MediaType getType() => MediaType.IMAGE;
+    
+    public override ISet<MagickFormat> getFormats() => new ReadOnlySet<MagickFormat>(MagickFormat.Tiff);
+
+    public override SwapperImpl? decodeData(Identifier id, RawMediaData data) {
+        data.attemptToCacheFile();
+        
+        var material = MaterialUtils.loadMaterialFromBytes(data);
+        
+        return material is not null ? new MaterialSwapper(id, material) : null;
     }
 }
 
