@@ -38,9 +38,35 @@ The following is the currently supported formats to swap textures and other asse
 
 ## Data Format Information
 
-Info about the data format to making queries will be documented within the future.
+Info about the data format to making queries will be documented within the future. A JSON file following the format below will allow from loading via Local, Static Web or custom queries.
 
-### Future Plans
+#### Rating
+
+It is recommended that all media queries are given rating to allow for better filtering of content by users if desired. The rating formats are: `safe, questionable, explicit`
+
+### Local Media
+
+All files located within `texture_swapper_queries` folder found within each plugin or within the modpack instances config folder will be attempted to be loaded as a local query.
+
+### Static Web Media
+
+Any JSON file with the given format will attempt to load media from the web:
+
+```json5
+{
+    "query_entries": [
+        {
+            "id": "texture_swapper:static_web", // Static Web type used to indicate query type
+            "rating": "safe",                   // Rating of the media for the given query
+            "urls": [                           // List of urls to look at for media data 
+                "https://www.gstatic.com/webp/gallery/1.webp"
+            ]
+        }
+    ]
+}
+```
+
+## Future Plans
 - Add support for APNG
 - Check media format size to better match swapping of textures to texture loactions
 - Allow for swapping textures onto other textures i.e. replace the fridge images without needing asset replacement
