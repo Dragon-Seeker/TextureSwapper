@@ -1,10 +1,9 @@
 {
-  "name": "Texture Swapper",
+  "name": "TextureSwapper",
   "version_number": "$(version)",
-  "website_url": "https://blodhgarm.io/",
+  "website_url": "https://github.com/Dragon-Seeker/TextureSwapper",
   "description": "This mod is based on Custom Paintings and allows for the ability to replace Various Textured Items (Sellable or Static) either by end users or other plugins.",
   "dependencies": [
-    "BepInEx-BepInExPack-5.4.2100",
-    "Zehs-REPOLib-1.5.0"
+    "BepInEx-BepInExPack-5.4.2100"
   ]
 }
