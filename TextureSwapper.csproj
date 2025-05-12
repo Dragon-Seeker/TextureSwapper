@@ -27,8 +27,6 @@
   
   <!-- Global References -->
   <ItemGroup>
-    <Content Include="temp\TextureSwapper.sln.DotSettings.user" />
-    <Folder Include="obj\Debug\net7.0\" />
     <PackageReference Include="Microsoft.CSharp" Version="4.7.0" />
     
     <PackageReference Include="BepInEx.Analyzers" Version="1.*" PrivateAssets="all" />
