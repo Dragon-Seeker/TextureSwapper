@@ -56,14 +56,17 @@ $allFiles += $assetsFiles
 $allFiles += "$TargetDir\TextureSwapper.dll", "$TargetDir\TextureSwapper.pdb"
 
 # -- -- --
+$releaseVersion = "ffmpeg-7.1.1-essentials_build"
 
 # Define the source URL and destination path
-$sourceUrl = "https://www.gyan.dev/ffmpeg/builds/ffmpeg-release-full.7z"
+$sourceUrl = "http://www.gyan.dev/ffmpeg/builds/packages/$releaseVersion.7z"
 $destinationPath = "$ProjectDir\temp\" # Change this if you want a different destination
-$releaseVersion = "ffmpeg-7.1.1-full_build"
+
 $archiveName = "$releaseVersion.7z"
 $archiveFullPath = Join-Path $destinationPath $archiveName
+
 $binPath = Join-Path $destinationPath "$releaseVersion\bin" # Path inside the archive
+
 $ffmpegExePath = Join-Path $destinationPath "$releaseVersion\bin\ffmpeg.exe"
 $ffprobeExePath = Join-Path $destinationPath "$releaseVersion\bin\ffprobe.exe"
 
@@ -118,7 +121,7 @@ if ((Test-Path -Path $ffmpegExePath -PathType 'Leaf') -and (Test-Path -Path $ffp
     Write-Host "Extracting ffmpeg.exe and ffprobe.exe from the archive."
     try {
         # Use 7-Zip to extract only the necessary files
-        & $zipPath x $archiveFullPath -o"$destinationPath" "ffmpeg-7.1.1-full_build\bin\ffmpeg.exe" "ffmpeg-7.1.1-full_build\bin\ffprobe.exe" -y | Out-Null
+        & $zipPath x $archiveFullPath -o"$destinationPath" "$releaseVersion\bin\ffmpeg.exe" "$releaseVersion\bin\ffprobe.exe" -y | Out-Null
         Write-Host "Extraction complete."
     } catch {
         Write-Error "Failed to extract files: $($_.Exception.Message)"
@@ -132,18 +135,20 @@ $allFiles += $ffmpegExePath, $ffprobeExePath
 
 # -- -- -- 
 
+$depdenciesFolder = "$TargetDir\publish"
+
 ## FFMPegCore Stuff
-#$allFiles += "$PublishDir\FFMpegCore.dll", "$PublishDir\Instances.dll", "$PublishDir\Microsoft.Bcl.AsyncInterfaces.dll"
-#$allFiles += "$PublishDir\System.Buffers.dll", "$PublishDir\System.IO.Pipelines.dll", "$PublishDir\System.Memory.dll"
-#$allFiles += "$PublishDir\System.Numerics.Vectors.dll", "$PublishDir\System.Runtime.CompilerServices.Unsafe.dll"
-#$allFiles += "$PublishDir\System.Text.Encodings.Web.dll", "$PublishDir\System.Text.Json.dll", "$PublishDir\System.Threading.Tasks.Extensions.dll"
-#
-## Magick Stuff
-#$allFiles += "$PublishDir\Magick.NET-Q8-x64.dll", "$PublishDir\Magick.NET.Core.dll"
-#
-## NAudio
-#$allFiles += "$PublishDir\NAudio.dll", "$PublishDir\NAudio.Asio.dll", "$PublishDir\NAudio.Core.dll", "$PublishDir\NAudio.Midi.dll"
-#$allFiles += "$PublishDir\NAudio.Wasapi.dll", "$PublishDir\NAudio.WinForms.dll", "$PublishDir\NAudio.WinMM.dll"
+$allFiles += "$depdenciesFolder\FFMpegCore.dll", "$depdenciesFolder\Instances.dll", "$depdenciesFolder\Microsoft.Bcl.AsyncInterfaces.dll"
+$allFiles += "$depdenciesFolder\System.Buffers.dll", "$depdenciesFolder\System.IO.Pipelines.dll", "$depdenciesFolder\System.Memory.dll"
+$allFiles += "$depdenciesFolder\System.Numerics.Vectors.dll", "$depdenciesFolder\System.Runtime.CompilerServices.Unsafe.dll"
+$allFiles += "$depdenciesFolder\System.Text.Encodings.Web.dll", "$depdenciesFolder\System.Text.Json.dll", "$depdenciesFolder\System.Threading.Tasks.Extensions.dll"
+
+# Magick Stuff
+$allFiles += "$depdenciesFolder\Magick.NET-Q8-x64.dll", "$depdenciesFolder\Magick.NET.Core.dll", "$TargetDir\Magick.Native-Q8-x64.dll"
+
+# NAudio
+$allFiles += "$depdenciesFolder\NAudio.dll", "$depdenciesFolder\NAudio.Asio.dll", "$depdenciesFolder\NAudio.Core.dll", "$depdenciesFolder\NAudio.Midi.dll"
+$allFiles += "$depdenciesFolder\NAudio.Wasapi.dll", "$depdenciesFolder\NAudio.WinForms.dll", "$depdenciesFolder\NAudio.WinMM.dll"
 
 # Create the compressed archive
 $DestinationPath = Join-Path $PublishOutputDir "$AssemblyName-$Version.zip"

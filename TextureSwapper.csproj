@@ -4,7 +4,7 @@
 <!--    <TargetFrameworks>net7.0;netstandard2.1</TargetFrameworks>-->
     <AssemblyName>TextureSwapper</AssemblyName>
     <Product>Texture Swapper</Product>
-    <Version>1.1.0</Version>
+    <Version>1.1.1</Version>
     <Nullable>enable</Nullable>
     <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
     <LangVersion>12</LangVersion>
@@ -21,25 +21,55 @@
     <AssetsDir>$(MSBuildThisFileDirectory)assets</AssetsDir>
     <Net7OrUp>false</Net7OrUp>
     <Net7OrUp Condition="'$(TargetFramework)' == 'net(?:[7-9]\d*|[1-9]\d+)\.0'">true</Net7OrUp>
+    <NetMagickVersion>14.6.0</NetMagickVersion>
+    <NetMagickType>Magick.NET-Q8-x64</NetMagickType>
   </PropertyGroup>
   
   <!-- Global References -->
   <ItemGroup>
+    <Content Include="temp\TextureSwapper.sln.DotSettings.user" />
     <Folder Include="obj\Debug\net7.0\" />
-    <Folder Include="PublishOutput\" />
     <PackageReference Include="Microsoft.CSharp" Version="4.7.0" />
+    
     <PackageReference Include="BepInEx.Analyzers" Version="1.*" PrivateAssets="all" />
     <PackageReference Include="BepInEx.Core" Version="5.*" />
     <PackageReference Include="BepInEx.PluginInfoProps" Version="2.*" />
+    <PackageReference Include="MonoMod" Version="22.7.31.1" />
     <PackageReference Include="HarmonyX" Version="2.10.2" />
+    
     <PackageReference Include="UnityEngine" Version="5.6.1" />
     <PackageReference Include="UnityEngine.Modules" Version="2022.3.21" IncludeAssets="compile" />
     <PackageReference Include="Zehs.REPOLib" Version="1.5.0" />
-    <PackageReference Include="Magick.NET-Q8-x64" Version="14.5.0" />
-    <PackageReference Include="MonoMod" Version="22.7.31.1" />
     <PackageReference Include="Newtonsoft.Json" Version="13.0.3" />
+
     <PackageReference Include="FFMpegCore" Version="5.2.0"/>
+    <PackageReference Include="Instances" Version="3.0.1"/>
+    <PackageReference Include="Microsoft.Bcl.AsyncInterfaces" Version="9.0.2"/>
+    <PackageReference Include="System.Buffers" Version="4.5.1"/>
+    <PackageReference Include="System.IO.Pipelines" Version="9.0.2"/>
+    <PackageReference Include="System.Memory" Version="4.5.5"/>
+    <PackageReference Include="System.Numerics.Vectors" Version="4.4.0"/>
+    <PackageReference Include="System.Runtime.CompilerServices.Unsafe" Version="6.0.0"/>
+    <PackageReference Include="System.Text.Encodings.Web" Version="9.0.2"/>
+    <PackageReference Include="System.Text.Json" Version="9.0.2"/>
+    <PackageReference Include="System.Threading.Tasks.Extensions" Version="4.5.4"/>
+
+    <PackageReference Include="$(NetMagickType)" Version="$(NetMagickVersion)" />
+    <Content Include="$(NuGetPackageRoot)\$(NetMagickType.ToLower())\$(NetMagickVersion)\runtimes\win-x64\native\Magick.Native-Q8-x64.dll">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+      <Link>Magick.Native-Q8-x64.dll</Link>
+    </Content>
+    <PackageReference Include="Magick.NET.Core" Version="$(NetMagickVersion)" />
+
     <PackageReference Include="NAudio" Version="2.0.1" />
+    <PackageReference Include="NAudio.Asio" Version="2.2.1" />
+    <PackageReference Include="NAudio.Core" Version="2.2.1" />
+    <PackageReference Include="NAudio.Midi" Version="2.2.1" />
+    <PackageReference Include="NAudio.Wasapi" Version="2.2.1" />
+    <PackageReference Include="NAudio.WinForms" Version="2.2.1" />
+    <PackageReference Include="NAudio.WinMM" Version="2.2.1" />
+    <PackageReference Include="System.Security.AccessControl" Version="6.0.0" />
+    <PackageReference Include="System.Security.Principal.Windows" Version="5.0.0" />
     
     <Reference Include="Assembly-CSharp">
         <HintPath>$(GameRoot)\REPO_Data\Managed\Assembly-CSharp.dll</HintPath>
