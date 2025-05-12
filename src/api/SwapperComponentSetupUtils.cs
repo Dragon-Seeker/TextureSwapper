@@ -160,17 +160,13 @@ public class SwapperComponentSetupUtils {
     }
 
     public static bool isCensored(MediaQueryResult queryResult) {
-        bool censorEntry = false;
+        if (Plugin.ConfigAccess.restrictiveQueries() && queryResult is RatedMediaResult queryRating && !queryRating.isSafe()) {
+            return true;
+        }
         
-        if (Plugin.ConfigAccess.restrictiveQueries()) {
-            if (queryResult is RatedMediaResult queryRating && !queryRating.getRating().Equals(MediaRating.SAFE)) {
-                return true;
-            }
-
-            if (!censorEntry && queryResult is TaggedMediaResult taggedMediaResult) {
-                foreach (var tag in Plugin.ConfigAccess.blackListTags) {
-                    if (taggedMediaResult.hasTag(tag)) return true;
-                }
+        if (queryResult is TaggedMediaResult taggedMediaResult) {
+            foreach (var tag in Plugin.ConfigAccess.blackListTags) {
+                if (taggedMediaResult.hasTag(tag)) return true;
             }
         }
 
