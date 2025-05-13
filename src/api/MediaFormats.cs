@@ -195,15 +195,17 @@ public class WEBP : MediaFormat {
                 }
             });
 
-            SwapperImpl? handler = null;
+            MainThreadHelper.runOnMainThread(() => {
+                SwapperImpl? handler = null;
             
-            if (hasCachedFile) {
-                var material = MaterialUtils.loadMaterialFromBytes(data.getBytes(), id);
+                if (hasCachedFile) {
+                    var material = MaterialUtils.loadMaterialFromBytes(data.getBytes(), id);
                 
-                handler = material is not null ? new MaterialSwapper(id, material) : null;
-            }
+                    handler = material is not null ? new MaterialSwapper(id, material) : null;
+                }
 
-            MediaSwapperStorage.storeHandler(id, data.mediaInfo, handler);
+                MediaSwapperStorage.storeHandler(id, data.mediaInfo, handler);
+            });
         });
 
         return new DelayedMeshSwapper(id, true);
@@ -242,15 +244,17 @@ public class SVG : MediaFormat {
                 }
             });
 
-            SwapperImpl? handler = null;
+            MainThreadHelper.runOnMainThread(() => {
+                SwapperImpl? handler = null;
             
-            if (hasCachedFile) {
-                var material = MaterialUtils.loadMaterialFromBytes(data.getBytes(), id);
+                if (hasCachedFile) {
+                    var material = MaterialUtils.loadMaterialFromBytes(data.getBytes(), id);
                 
-                handler = material is not null ? new MaterialSwapper(id, material) : null;
-            }
+                    handler = material is not null ? new MaterialSwapper(id, material) : null;
+                }
 
-            MediaSwapperStorage.storeHandler(id, data.mediaInfo, handler);
+                MediaSwapperStorage.storeHandler(id, data.mediaInfo, handler);
+            });
         });
 
         return new DelayedMeshSwapper(id, true);

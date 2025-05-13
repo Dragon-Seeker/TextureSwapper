@@ -21,8 +21,8 @@ public record RawMediaData {
     
     private byte[]? rawImageData;
     
-    public RawMediaData(string url, byte[] rawImageData, MediaQueryResult queryResult, MediaInfo? mediaInfo = null) {
-        this.id = Identifier.ofUri(url);
+    public RawMediaData(string url, byte[] rawImageData, MediaQueryResult queryResult, MediaInfo? mediaInfo = null, string unknownHostType = "unknown") {
+        this.id = Identifier.ofUri(url, unknownHostType);
         this.url = url;
         this.mediaInfo = MediaInfo.of(url, rawImageData, mediaInfo);
         this.rawImageData = rawImageData;
@@ -36,11 +36,11 @@ public record RawMediaData {
         this.mediaInfo = MediaInfo.ofError(url);
     }
 
-    public static async Task<RawMediaData> getData(HttpClient client, MediaInfo mediaInfo, MediaQueryResult queryResult) {
-        return await getData(client, queryResult, mediaInfo.uri, mediaInfo);
+    public static async Task<RawMediaData> getWebData(HttpClient client, MediaInfo mediaInfo, MediaQueryResult queryResult) {
+        return await getWebData(client, queryResult, mediaInfo.uri, mediaInfo);
     }
 
-    public static async Task<RawMediaData> getData(HttpClient client, MediaQueryResult queryResult, string imageUrl, MediaInfo? mediaInfo = null) {
+    public static async Task<RawMediaData> getWebData(HttpClient client, MediaQueryResult queryResult, string imageUrl, MediaInfo? mediaInfo = null) {
         var timeOutWindow = 120;
 
         if (!imageUrl.IsNullOrWhitespace()) {

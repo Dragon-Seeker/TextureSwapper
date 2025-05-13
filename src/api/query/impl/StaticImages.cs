@@ -69,7 +69,7 @@ public class StaticWebQueryType : MediaQueryType<StaticWebQuery, StaticWebQueryR
         var queryResult = new StaticWebQueryResult(UriUtils.getDomain(url) ?? "unknown", pair.Item2);
         
         try {
-            RawMediaData.getData(client, queryResult, url).ContinueWith(async (imageTask) => {
+            RawMediaData.getWebData(client, queryResult, url).ContinueWith(async (imageTask) => {
                 var IsCompletedSuccessfully = imageTask.IsCompletedSuccessfully;
 
                 if (IsCompletedSuccessfully) {

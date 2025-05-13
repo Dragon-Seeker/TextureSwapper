@@ -35,9 +35,11 @@ public class Identifier {
         return new Identifier(parts[0], parts[1]);
     }
 
-    public static Identifier ofUri(string uri) {
-        // TODO: FIND OUT THE DIFFERENCE BETWEEN NO VALID DOMAIN VS LOCAL URI
-        var domain = UriUtils.sanitizeName(UriUtils.getDomain(uri)) ?? "local";
+    public static Identifier ofUri(string uri, string unknownHostType = "unknown") {
+        var domain = UriUtils.sanitizeName(UriUtils.getDomain(uri)) ?? unknownHostType;
+        
+        // TODO: FIND IF IT IS REQUIRED TO GET THE ABSOLUTE PATH TO DEAL WITH MORE ODD URLS INSTEAD OF FILE NAME GET
+        //var path = UriUtils.sanitizeName(UriUtils.getURI(uri).AbsolutePath);
         
         var path = UriUtils.sanitizeName(System.IO.Path.GetFileNameWithoutExtension(uri));
 

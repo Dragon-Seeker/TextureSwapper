@@ -215,7 +215,7 @@ public class MediaSwapperStorage {
         MultiThreadHelper.run(SemaphoreIdentifier.createFromMedia(info.uri), () => {
             var client = HttpClientUtils.createClient();
             
-            RawMediaData.getData(client, info, result).ContinueWith((task) => {
+            RawMediaData.getWebData(client, info, result).ContinueWith((task) => {
                 var results = task.Result;
                 
                 client.Dispose();

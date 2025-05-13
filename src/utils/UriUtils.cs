@@ -7,24 +7,24 @@ using Sirenix.Utilities;
 namespace io.wispforest.textureswapper.utils;
 
 public class UriUtils {
-    public static string? getDomain(string url) {
+    public static Uri? getURI(string url) {
         if (!string.IsNullOrEmpty(url)) {
             try {
-                var host = new Uri(url).Host;
-
-                if (!host.IsNullOrWhitespace()) return host;
+                return new Uri(url);
             } catch (UriFormatException) {
                 if (!url.StartsWith("http://", StringComparison.OrdinalIgnoreCase) && !url.StartsWith("https://", StringComparison.OrdinalIgnoreCase)) {
                     try {
-                        var host = new Uri("https://" + url).Host;
-
-                        if (!host.IsNullOrWhitespace()) return host;
+                        return new Uri("https://" + url);
                     } catch(UriFormatException) {}
                 }
             }
         }
 
         return null;
+    }
+    
+    public static string? getDomain(string url) {
+        return getURI(url)?.Host;
     }
     
     public static string? sanitizeName(string? hostname) {

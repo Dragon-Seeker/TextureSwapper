@@ -83,8 +83,8 @@ public class LocalMediaQueryType : MediaQueryType<LocalMediaQuery, LocalMediaQue
         var files = data.gatherFiles();
         
         foreach (var file in files.Item2) {
-            if (Regex.IsMatch(file, @"(..(\\|\/|$))|")) {
-                Plugin.logIfDebugging(source => source.LogError($"Unable to handle the given Local file [{file}] as it matches against the pattern [{@"(..(\\|\/|$))|"}] possibly indicating Path Traversal!"));
+            if (Regex.IsMatch(file, @"(\.\.(\\|\/|$))")) {
+                Plugin.logIfDebugging(source => source.LogError($"Unable to handle the given Local file [{file}] as it matches against the pattern [{@"(\.\.(\\|\/|$))"}] possibly indicating Path Traversal!"));
                 
                 continue;
             }
@@ -112,7 +112,7 @@ public class LocalMediaQueryType : MediaQueryType<LocalMediaQuery, LocalMediaQue
         try {
             if (bytes is null) return;
             
-            var rawMedia = new RawMediaData(file, bytes, new LocalMediaQueryResult(origin, rating));
+            var rawMedia = new RawMediaData(file, bytes, new LocalMediaQueryResult(origin, rating), unknownHostType: "local");
 
             MediaSwapperStorage.storeRawMediaData(rawMedia);
         } catch(Exception e) {
