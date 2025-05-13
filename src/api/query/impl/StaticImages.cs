@@ -6,6 +6,7 @@ using System.Linq;
 using System.Net.Http;
 using System.Threading;
 using System.Threading.Tasks;
+using System.Web;
 using BepInEx;
 using io.wispforest.impl;
 using io.wispforest.textureswapper.api.query;
@@ -78,7 +79,9 @@ public class StaticWebQueryType : MediaQueryType<StaticWebQuery, StaticWebQueryR
     public override void executeQuery(StaticWebQuery data) {
         if (data.urls.Count <= 0) return;
 
-        var adjustedUrls = data.urls.Select(adjustURL).ToList();
+        var adjustedUrls = data.urls.Select(adjustURL)
+                .Where(s => s is not null)
+                .ToList();
         
         foreach (var url in adjustedUrls) {
             MediaSwapperStorage.addIdAndTryToSetupType(url);
@@ -92,12 +95,26 @@ public class StaticWebQueryType : MediaQueryType<StaticWebQuery, StaticWebQueryR
     }
 
     // TODO: USE THIS LOCATION TO ADJUST URLS though API and check blacklist
-    private static string adjustURL(string url) {
-        if (url.Contains("https://www.reddit.com/media?url=")) {
-            return url.Replace("https://www.reddit.com/media?url=", "");
-        }
+    private static string? adjustURL(string url) {
+        try {
+            if (url.Contains("https://www.reddit.com/media?url=")) {
+                var mediaUrl = getUrlParameter(url, "url");
 
+                if (mediaUrl is null) return null;
+                
+                return HttpUtility.UrlDecode(mediaUrl);
+            }
+        } catch (Exception e) {
+            Plugin.Logger.LogWarning($"Unable to adjust the given url, such will be ignored: [Url: {url}]");
+            Plugin.Logger.LogError(e);
+        }
+        
         return url;
+    }
+    
+    private static string? getUrlParameter(string fullUrl, string parameterName) {
+        return HttpUtility.ParseQueryString(new Uri(fullUrl).Query)
+                .Get(parameterName);
     }
 
     public override int maxCountOfConcurrentTypes() {

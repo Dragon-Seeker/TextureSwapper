@@ -66,8 +66,16 @@ public static class MediaQueryTypeRegistry {
 
         var type = TYPES[id];
         if (!type.canHandleQueryData(query)) return false;
+
+        try {
+            type.executeQuery(query);
+        } catch (Exception e) {
+            Plugin.Logger.LogError($"Unable to handle the given query type as an exception has occrued! [Id: {id}]");
+            Plugin.Logger.LogError(e);
+
+            return false;
+        }
         
-        type.executeQuery(query);
             
         return true;
 

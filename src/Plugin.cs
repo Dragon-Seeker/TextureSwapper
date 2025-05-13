@@ -195,8 +195,7 @@ public class Plugin : BaseUnityPlugin {
          foreach (var directory in directories) {
             try {
                typeToQueries.computeIfAbsent(LocalMediaQueryType.ID, _ => []).Add(LocalMediaQuery.ofDirectory(directory));
-            }
-            catch (Exception e) {
+            } catch (Exception e) {
                Logger.LogError($"Unable to query local directory: {e}");
             }
 
@@ -226,7 +225,9 @@ public class Plugin : BaseUnityPlugin {
             // TODO: Change ability to regulate how many requests are possible for each type
             MultiThreadHelper.run(new SemaphoreIdentifier(Identifier.of("texture_swapper", "types"), maxCount: 1), () => {
                foreach (var mediaQuery in entry.Value) {
-                  MediaQueryTypeRegistry.attemptToHandleQuery(mediaQuery);
+                  if (!MediaQueryTypeRegistry.attemptToHandleQuery(mediaQuery)) {
+                     Logger.LogError($"Unable to handle the given query: [Id: {entry.Key}]");
+                  }
                }
             });
          }
