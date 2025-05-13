@@ -145,9 +145,13 @@ public class Plugin : BaseUnityPlugin {
       
       // Register builtin provided query types
       MediaQueryTypeRegistry.register<LocalMediaQueryType, LocalMediaQuery, LocalMediaQueryResult>(LocalMediaQueryType.INSTANCE);
-      MediaQueryTypeRegistry.register<StaticWebQueryType, StaticWebQuery, StaticWebQueryResult>(StaticWebQueryType.INSTANCE);
+      
       Logger.LogInfo($"Plugin {SwapperPluginInfo.PLUGIN_NAME} loaded Successfully!");
    }
+
+   public delegate void AdditionalQueryLookup(Action<Identifier, IList<MediaQuery>> addCallback);
+
+   public static event AdditionalQueryLookup ADDITIONAL_QUERY_LOOKUP;
 
    public void Start() {
       string pluginFolder = Path.GetDirectoryName(Assembly.GetExecutingAssembly().Location)!;
@@ -155,12 +159,11 @@ public class Plugin : BaseUnityPlugin {
       Logger.LogInfo($"Plugin {SwapperPluginInfo.PLUGIN_NAME} starting!");
       
       var typeToQueries = new Dictionary<Identifier, IList<MediaQuery>>();
-
-      var staticConfigUrls = ConfigAccess.staticWebMedia;
-
-      if (staticConfigUrls.Count > 0) {
-         typeToQueries.Add(StaticWebQueryType.ID, [StaticWebQuery.of(staticConfigUrls)]);
-      }
+      
+      ADDITIONAL_QUERY_LOOKUP?.Invoke((identifier, list) => {
+         typeToQueries.computeIfAbsent(identifier, _ => new List<MediaQuery>())
+               .AddRange(list);
+      });
       
       // -- General Creation of Local Directories to search
       

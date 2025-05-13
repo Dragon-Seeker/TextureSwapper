@@ -6,11 +6,40 @@ using System.Linq;
 using System.Net.Http;
 using System.Threading;
 using System.Threading.Tasks;
+using BepInEx;
 using io.wispforest.impl;
 using io.wispforest.textureswapper.api.query;
 using io.wispforest.textureswapper.utils;
 
 namespace io.wispforest.textureswapper.api.query.impl;
+
+[BepInPlugin(SwapperPluginInfo.PLUGIN_GUID + "_web_addon", SwapperPluginInfo.PLUGIN_NAME + " Web Addon", "1.0.0")]
+public class StaticWeb : BaseUnityPlugin {
+
+    public static StaticWebQuery? CONFIG_QUERY;
+    
+    private void Awake() {
+        init();
+    }
+    
+    public static void init() {
+        MediaQueryTypeRegistry.register<StaticWebQueryType, StaticWebQuery, StaticWebQueryResult>(StaticWebQueryType.INSTANCE);
+
+        Plugin.ADDITIONAL_QUERY_LOOKUP += callback => {
+            callback(StaticWebQueryType.ID, [getConfigQuery()]);
+        };
+    }
+
+    public static StaticWebQuery getConfigQuery() {
+        if (CONFIG_QUERY is null) {
+            var staticConfigUrls = Plugin.ConfigAccess.staticWebMedia;
+            
+            CONFIG_QUERY = StaticWebQuery.of(staticConfigUrls);
+        }
+
+        return CONFIG_QUERY;
+    }
+}
 
 public class StaticWebQuery : MediaQuery, EndecGetter<StaticWebQuery> {
 
@@ -48,16 +77,27 @@ public class StaticWebQueryType : MediaQueryType<StaticWebQuery, StaticWebQueryR
 
     public override void executeQuery(StaticWebQuery data) {
         if (data.urls.Count <= 0) return;
+
+        var adjustedUrls = data.urls.Select(adjustURL).ToList();
         
-        foreach (var url in data.urls) {
+        foreach (var url in adjustedUrls) {
             MediaSwapperStorage.addIdAndTryToSetupType(url);
         }
 
-        var queue = new ConcurrentQueue<(string, MediaRating)>(data.urls.Select(s => (s, data.rating)));
+        var queue = new ConcurrentQueue<(string, MediaRating)>(adjustedUrls.Select(s => (s, data.rating)));
         
         MultiThreadHelper.run(createSemaphoreIdentifier(), () => {
             HttpClientUtils.iteratePosts("Web", 300, HttpClientUtils.createClient(), queue, handlePost, tuple => tuple.Item1);
         });
+    }
+
+    // TODO: USE THIS LOCATION TO ADJUST URLS though API and check blacklist
+    private static string adjustURL(string url) {
+        if (url.Contains("https://www.reddit.com/media?url=")) {
+            return url.Replace("https://www.reddit.com/media?url=", "");
+        }
+
+        return url;
     }
 
     public override int maxCountOfConcurrentTypes() {
