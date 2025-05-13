@@ -2,11 +2,9 @@
 
 Texture Swapper is an in-depth Texture and more swapper mod to the game R.E.P.O designed to be expandable and easy to use. Such was based on [RandomPaintingSwap](https://github.com/GabziDev/RandomPaintingSwap) by GabziDev and credit to them for the orignal idea and code.
 
-> ## Installation
-### Manual Installation
-1. Go to the root folder of your game.
-2. Open the `BepInEx\plugins` folder.
-3. Place the `TextureSwapper-x.dll` file of the plugin inside this folder.
+# More Info
+
+Recommend to check out [Texture Swapper](https://github.com/Dragon-Seeker/TextureSwapper) on GitHub for more up-to-date info about features and guides on using the mod.
 
 ### Adding Custom Images
 1. In the `plugins` folder where you placed the `TextureSwapper-x.dll` file, create a folder named `texture_swapper_queries`.

@@ -6,6 +6,7 @@ using System.Net.Http.Headers;
 using System.Threading.Tasks;
 using ImageMagick;
 using io.wispforest.textureswapper.api.query;
+using io.wispforest.textureswapper.api.query.impl;
 using io.wispforest.textureswapper.utils;
 using Sirenix.Utilities;
 
@@ -117,7 +118,9 @@ public record RawMediaData {
     }
     
     public bool attemptToCacheFile(Func<byte[], byte[]?>? conversion = null) {
-        if (isError() || rawImageData is null || SwapperComponentSetupUtils.isCensored(queryResult)) return false;
+        if (isError() || rawImageData is null || SwapperComponentSetupUtils.isCensored(queryResult) || queryResult is LocalMediaQueryResult) {
+            return false;
+        }
 
         var format = mediaInfo.format;
         
