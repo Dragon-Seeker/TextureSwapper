@@ -90,12 +90,12 @@ public record RawMediaData {
     public bool isError() => mediaInfo.isError;
 
     private static async Task<byte[]?> tryAndGetCachedFile(string url) {
-        var name = Path.GetFileNameWithoutExtension(url);
+        var id = Identifier.ofUri(url);
         var urlFormat = MediaFormats.getFormatFromUrl(url);
 
         var lookup = (urlFormat is UnimplementedMediaFormat format)
-                ? createFileLookup(name, url, MediaType.UNKNOWN, format.primaryExtension())
-                : createFileLookup(name, url, urlFormat.getType(), urlFormat.primaryExtension());
+                ? createFileLookup(id, MediaType.UNKNOWN, format.primaryExtension())
+                : createFileLookup(id, urlFormat.getType(), urlFormat.primaryExtension());
         
         return await FileUtils.loadDataFromFile(lookup);
     }
@@ -103,7 +103,7 @@ public record RawMediaData {
     public async Task<byte[]?> getCachedFile() {
         var format = mediaInfo.format;
 
-        var lookup  = createFileLookup(id.Path, url, format.getType(), format.primaryExtension());
+        var lookup  = createFileLookup(id, format.getType(), format.primaryExtension());
 
         return await FileUtils.loadDataFromFile(lookup);
     }
@@ -111,7 +111,7 @@ public record RawMediaData {
     public string getCacheFilePath() {
         var format = mediaInfo.format;
         
-        var lookup = createFileLookup(id.Path, url, format.getType(), format.primaryExtension());
+        var lookup = createFileLookup(id, format.getType(), format.primaryExtension());
         
         return lookup.getFilePath();
     }
@@ -121,7 +121,7 @@ public record RawMediaData {
 
         var format = mediaInfo.format;
         
-        var lookup = createFileLookup(id.Path, url, format.getType(), format.primaryExtension());
+        var lookup = createFileLookup(id, format.getType(), format.primaryExtension());
         var file = lookup.getFilePath();
         
         if (File.Exists(file)) return true;
@@ -143,9 +143,7 @@ public record RawMediaData {
         return true;
     }
 
-    private static FileLookupHelper createFileLookup(string name, string url, MediaType type, string extension = "*") {
-        var host = UriUtils.sanitizeName(UriUtils.getDomain(url));
-
+    private static FileLookupHelper createFileLookup(Identifier id, MediaType type, string extension = "*") {
         var basePath = type switch {
                 MediaType.VIDEO => Plugin.TempVideoStoragePath,
                 MediaType.AUDIO => Plugin.TempAudioStoragePath,
@@ -153,9 +151,9 @@ public record RawMediaData {
                 _ => Plugin.TempStoragePath
         };
 
-        if (host != null) basePath = Path.Combine(basePath, host);
+        basePath = Path.Combine(basePath, id.Namespace);
 
-        return new FileLookupHelper(basePath, name, $"{name}.{extension}");
+        return new FileLookupHelper(basePath, id.Path, $"{id.Path}.{extension}");
     }
 }
 

@@ -201,10 +201,21 @@ public class MediaSwapperStorage {
         
         ID_TO_MEDIA_TYPE[data.id] = data.info.format.getType();
         
-        MultiThreadHelper.run(SemaphoreIdentifier.createFromMedia(data.info.uri), () => {
+        loadMediaData(data.id, data.info, data.result);
+    }
+
+    public static void reloadData(Identifier id) {
+        var info = ID_TO_MEDIA_INFO[id];
+        var queryResult = ID_TO_MEDIA_QUERY_RESULT[id];
+        
+        loadMediaData(id, info, queryResult);
+    }
+
+    private static void loadMediaData(Identifier id, MediaInfo info, MediaQueryResult result) {
+        MultiThreadHelper.run(SemaphoreIdentifier.createFromMedia(info.uri), () => {
             var client = HttpClientUtils.createClient();
             
-            RawMediaData.getData(client, data.info, data.result).ContinueWith((task) => {
+            RawMediaData.getData(client, info, result).ContinueWith((task) => {
                 var results = task.Result;
                 
                 client.Dispose();
@@ -212,11 +223,11 @@ public class MediaSwapperStorage {
                 if (task.IsCompletedSuccessfully && results is not null && !results.isError()) {
                     storeRawMediaData(results);
                 } else {
-                    Plugin.Logger.LogError($"Unable to get the image data for the following: {data.id}");
-                    ID_TO_SWAPPER[data.id] = ID_TO_SWAPPER[MediaIdentifiers.MISSING];
+                    Plugin.Logger.LogError($"Unable to get the image data for the following: {id}");
+                    ID_TO_SWAPPER[id] = ID_TO_SWAPPER[MediaIdentifiers.MISSING];
                 }
 
-                liftIfSameState(data.id, ProcessingState.QUERIED);
+                liftIfSameState(id, ProcessingState.QUERIED);
             });
         });
     }

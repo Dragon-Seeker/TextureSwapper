@@ -4,6 +4,7 @@ using System.Collections.Generic;
 using System.IO;
 using System.Linq;
 using System.Net.Http;
+using System.Text.RegularExpressions;
 using System.Threading.Tasks;
 using ImageMagick;
 using io.wispforest.impl;
@@ -82,6 +83,12 @@ public class LocalMediaQueryType : MediaQueryType<LocalMediaQuery, LocalMediaQue
         var files = data.gatherFiles();
         
         foreach (var file in files.Item2) {
+            if (Regex.IsMatch(file, @"(..(\\|\/|$))|")) {
+                Plugin.logIfDebugging(source => source.LogError($"Unable to handle the given Local file [{file}] as it matches against the pattern [{@"(..(\\|\/|$))|"}] possibly indicating Path Traversal!"));
+                
+                continue;
+            }
+            
             try {
                 MediaSwapperStorage.addIdAndTryToSetupType(file);
                 

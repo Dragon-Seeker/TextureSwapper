@@ -36,7 +36,8 @@ public class Identifier {
     }
 
     public static Identifier ofUri(string uri) {
-        var domain = UriUtils.getDomain(uri) ?? "local";
+        // TODO: FIND OUT THE DIFFERENCE BETWEEN NO VALID DOMAIN VS LOCAL URI
+        var domain = UriUtils.sanitizeName(UriUtils.getDomain(uri)) ?? "local";
         
         var path = UriUtils.sanitizeName(System.IO.Path.GetFileNameWithoutExtension(uri));
 
