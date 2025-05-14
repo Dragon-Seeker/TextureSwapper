@@ -26,7 +26,7 @@ public class JsonUtils {
     }
     
     public static JToken readFromStream(Stream value) {
-        return JToken.ReadFrom(new JsonTextReader(new StringReader(new StreamReader(value).ReadToEnd())));
+        return readFromString(new StreamReader(value).ReadToEnd());
     }
     
     public static JToken readFromFileIfPresent(string path) {

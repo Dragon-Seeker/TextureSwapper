@@ -10,6 +10,7 @@ using FFMpegCore.Enums;
 using FFMpegCore.Pipes;
 using HarmonyLib;
 using ImageMagick;
+using io.wispforest.impl;
 using io.wispforest.textureswapper.utils;
 using io.wispforest.util;
 using NAudio.Wave;
@@ -19,6 +20,8 @@ using UnityEngine;
 namespace io.wispforest.textureswapper.api;
 
 public static class MediaFormats {
+    public static readonly Endec<MediaFormat> FORMAT_ENDEC = Endecs.STRING.xmap(s => MediaFormats.getFormat(s), type => type.name());
+    
     private static readonly Dictionary<string, MediaFormat> VALID_MEDIA_TYPES = new ();
 
     private static readonly Dictionary<string, MagickFormat> ENUM_MAP = new (); 

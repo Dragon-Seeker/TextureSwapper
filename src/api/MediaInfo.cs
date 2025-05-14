@@ -20,9 +20,9 @@ public record MediaInfo : EndecGetter<MediaInfo> {
     public static readonly Endec<MediaInfo> ENDEC = StructEndecBuilder.of(
             Endecs.INT.fieldOf<MediaInfo>("width", s => s.width),
             Endecs.INT.fieldOf<MediaInfo>("height", s => s.height), 
-            Endecs.STRING.xmap(s => MediaFormats.getFormat(s), type => type.name()).fieldOf<MediaInfo>("ext", s => s.format),
-            Endecs.INT.fieldOf<MediaInfo>("size", s => s.size), 
-            Endecs.STRING.fieldOf<MediaInfo>("md5", s => s.md5Hash),
+            MediaFormats.FORMAT_ENDEC.optionalFieldOf<MediaInfo>("ext", s => s.format, new UnimplementedMediaFormat("unknown")),
+            Endecs.INT.optionalFieldOf<MediaInfo>("size", s => s.size, () => 0), 
+            Endecs.STRING.optionalFieldOf<MediaInfo>("md5", s => s.md5Hash, () => ""),
             Endecs.STRING.fieldOf<MediaInfo>("url", s => s.uri),
             Endecs.DOUBLE.optionalFieldOf<MediaInfo>("duration", s => s.duration, () => -1),
             Endecs.STRING.optionalFieldOf<MediaInfo>("video_codec", s => s.videoCodec, () => ""),
@@ -39,7 +39,7 @@ public record MediaInfo : EndecGetter<MediaInfo> {
     public MediaFormat format { get; }
     public int size { get; }
     public string md5Hash { get; }
-    public string uri { get; }
+    public string uri { get; private set; }
     
     public int width { get; }
     public int height { get; }
@@ -74,6 +74,12 @@ public record MediaInfo : EndecGetter<MediaInfo> {
         this.audioCodec = audioCodec;
         this.channels = channels;
         this.frequency = frequency;
+    }
+
+    internal MediaInfo adjustUri(Func<string, string> conversion) {
+        this.uri = conversion(this.uri);
+
+        return this;
     }
 
     public int lengthSamples() {
@@ -160,7 +166,6 @@ public record MediaInfo : EndecGetter<MediaInfo> {
         });
             
         return ofError(uri);
-
     }
     
     private static (MediaInfo? info, Exception? ex) getInfoAsImage(string uri, byte[] data, MediaInfo? extraInfo) {
