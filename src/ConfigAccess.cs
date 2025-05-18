@@ -32,6 +32,8 @@ public class ConfigAccess {
     private readonly ConfigEntry<String> STATIC_WEB_MEDIA;
     
     private readonly ConfigEntry<String> BLACKLIST_TAGS;
+    private readonly ConfigEntry<bool> ENABLE_GLOBAL_BLACKLIST;
+    private readonly ConfigEntry<String> ALLOWED_TAGS;
     
     private readonly ConfigFile configFile;
 
@@ -45,7 +47,10 @@ public class ConfigAccess {
                 .Bind(out DEBUG_LOGGING, "DebugLogging", false, "Enables some useful debug logging to check and or validate if things are going properly")
                 .Bind(out PICTURE_TEXTURE_TARGETS, "TextureTargets", DEFAULT_TEXTURE_TARGETS, "All texture targets to replace with custom images, Seperated by commas (,) without any spaces")
                 .Bind(out RESTRICTED_QUERIES, "RestrictiveQueries", true, "Will prevent restrict the queries allow to be safer with image content requested")
-                .Bind(out BLACKLIST_TAGS, "DisallowedTags", "", "A list of tags that are disallowed from being shown, Seperated by commas (,) without any spaces");
+                .Bind(out BLACKLIST_TAGS, "DisallowedTags", "", "A list of tags that are disallowed from being shown, Seperated by commas (,) without any spaces")
+                .Bind(out ENABLE_GLOBAL_BLACKLIST, "EnableGlobalBlacklist", false, "Enables the Global Blacklist for generally unsafe queries, disable at your own risk when allowing Restrictive Queries")
+                .Bind(out ALLOWED_TAGS, "AllowedTags", "", "A list of tags that are allowed to be shown, Seperated by commas (,) without any spaces");
+
         //--
         
         configFile.Section("SwapperSettings")
@@ -101,12 +106,14 @@ public class ConfigAccess {
         directoryLocations = parseString(DIRECTORY_LOCATION.Value);
         staticWebMedia = parseString(STATIC_WEB_MEDIA.Value);
         blackListTags = parseString(BLACKLIST_TAGS.Value);
+        whiteListTags = parseString(ALLOWED_TAGS.Value);
     }
     
     public bool debugLogging() => DEBUG_LOGGING.Value;
     public bool clientSideOnly() => CLIENT_SIDE_ONLY.Value;
     public List<string> pictureTextureTargets { get; private set; }
     public bool restrictiveQueries() => RESTRICTED_QUERIES.Value;
+    public bool enableGlobalBlacklist() => ENABLE_GLOBAL_BLACKLIST.Value;
     
     public bool onlyFirstAnimationFrame() => ONLY_FIRST_ANIMATION_FRAME.Value;
     public bool allowTranscodingVideos() => ALLOW_TRANSCODING_VIDEOS.Value;
@@ -118,6 +125,7 @@ public class ConfigAccess {
     public List<string> staticWebMedia { get; private set; }
     
     public List<string> blackListTags { get; private set; }
+    public List<string> whiteListTags { get; private set; }
 
     private static List<string> parseString(String value) {
         return value.Split(',').Where(s => !s.IsNullOrWhiteSpace() && s.Length > 0).ToList();
