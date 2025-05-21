@@ -4,7 +4,7 @@
 <!--    <TargetFrameworks>net7.0;netstandard2.1</TargetFrameworks>-->
     <AssemblyName>TextureSwapper</AssemblyName>
     <Product>Texture Swapper</Product>
-    <Version>1.1.5</Version>
+    <Version>1.1.6</Version>
     <Nullable>enable</Nullable>
     <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
     <LangVersion>12</LangVersion>
