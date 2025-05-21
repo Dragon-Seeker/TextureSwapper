@@ -43,9 +43,9 @@ public class MediaSwapperStorage {
         return ID_TO_MEDIA_TYPE.ContainsKey(identifier) ? ID_TO_MEDIA_TYPE[identifier] : MediaType.UNKNOWN;
     }
 
-    public static bool addIdAndTryToSetupType(string uri) {
+    public static bool addIdAndTryToSetupType(string uri, string unknownHostType = "unknown") {
         try {
-            var id = Identifier.ofUri(uri);
+            var id = Identifier.ofUri(uri, unknownHostType);
 
             if (!ALL_MEDIA_IDS.Contains(id)) {
                 var type = MediaFormats.getType(uri);

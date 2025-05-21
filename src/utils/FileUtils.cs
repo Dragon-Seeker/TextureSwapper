@@ -6,6 +6,11 @@ using io.wispforest.textureswapper.api;
 namespace io.wispforest.textureswapper.utils;
 
 public class FileUtils {
+    
+    public static string? getParentDirectory(string path) {
+        return Path.GetFileName(Path.GetDirectoryName(path));
+    }
+    
     public static void createFileFromBytes(byte[] data, string filePath) {
         if (data.Length == 0 || string.IsNullOrEmpty(filePath)) return;
         

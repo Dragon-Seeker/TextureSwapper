@@ -34,7 +34,7 @@ namespace io.wispforest.textureswapper;
 
 [BepInPlugin(SwapperPluginInfo.PLUGIN_GUID, SwapperPluginInfo.PLUGIN_NAME, SwapperPluginInfo.PLUGIN_VERSION)]
 public class Plugin : BaseUnityPlugin {
-   internal static readonly List<string> RAW_NAMES = [ "painting_swapper_images",  "RandomPaintingSwap_Images",  "CustomPaintings", "texture_swapper_queries" ];
+   internal static readonly List<string> RAW_NAMES = [ "texture_swapper_queries", "painting_swapper_images",  "RandomPaintingSwap_Images",  "CustomPaintings" ];
 
    private static Plugin? _INSTANCE = null;
    private static ManualLogSource? _LOGGER = null;

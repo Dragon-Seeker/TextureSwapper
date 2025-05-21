@@ -90,7 +90,13 @@ public class LocalMediaQueryType : MediaQueryType<LocalMediaQuery, LocalMediaQue
             }
             
             try {
-                MediaSwapperStorage.addIdAndTryToSetupType(file);
+                var parentDir = FileUtils.getParentDirectory(file);
+
+                if (Plugin.RAW_NAMES.Contains(parentDir)) {
+                    parentDir = FileUtils.getParentDirectory(parentDir);
+                }
+                
+                MediaSwapperStorage.addIdAndTryToSetupType(file, unknownHostType: parentDir ?? "local");
                 
                 if (data.syncedTask) {
                     loadTextureFromBytes(file, files.Item1, File.ReadAllBytes(file), data.rating);
