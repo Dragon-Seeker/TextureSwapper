@@ -47,19 +47,22 @@ public class StaticWebQuery : MediaQuery, EndecGetter<StaticWebQuery> {
     public static readonly StructEndec<StaticWebQuery> ENDEC = StructEndecBuilder.of(
         Endecs.STRING.listOf().fieldOf<StaticWebQuery>("urls", s => s.urls),
         MediaRatingUtils.ENDEC.fieldOf<StaticWebQuery>("rating", s => s.rating),
-        (urls, rating) => new StaticWebQuery(urls, rating)
+        Endecs.STRING.listOf().optionalFieldOf<StaticWebQuery>("tags", s => s.tags, () => []),
+        (urls, rating, tags) => new StaticWebQuery(urls, rating, tags)
     );
 
     public IList<string> urls { get; }
     public MediaRating rating { get; }
+    public IList<string> tags { get; }
     
-    private StaticWebQuery(IList<string> urls, MediaRating rating) {
+    private StaticWebQuery(IList<string> urls, MediaRating rating, IList<string> tags) {
         this.urls = urls;
         this.rating = rating;
+        this.tags = tags;
     }
     
-    public static StaticWebQuery of(IList<string> urls, MediaRating rating = MediaRating.SAFE) {
-        return new StaticWebQuery(urls, rating);
+    public static StaticWebQuery of(IList<string> urls, MediaRating rating = MediaRating.SAFE, IList<string>? tags = null) {
+        return new StaticWebQuery(urls, rating, tags ?? []);
     }
     
     public override Identifier getQueryTypeId() {
@@ -80,14 +83,14 @@ public class StaticWebQueryType : MediaQueryType<StaticWebQuery, StaticWebQueryR
         if (data.urls.Count <= 0) return;
 
         var adjustedUrls = data.urls.Select(adjustURL)
-                .Where(s => s is not null)
+                .selectNonNull()
                 .ToList();
         
         foreach (var url in adjustedUrls) {
             MediaSwapperStorage.addIdAndTryToSetupType(url);
         }
 
-        var queue = new ConcurrentQueue<(string, MediaRating)>(adjustedUrls.Select(s => (s, data.rating)));
+        var queue = new ConcurrentQueue<(string url, MediaRating rating, IList<string> tags)>(adjustedUrls.Select(s => (s, data.rating, data.tags)));
         
         MultiThreadHelper.run(createSemaphoreIdentifier(), () => {
             HttpClientUtils.iteratePosts("Web", 300, HttpClientUtils.createClient(), queue, handlePost, tuple => tuple.Item1);
@@ -121,9 +124,9 @@ public class StaticWebQueryType : MediaQueryType<StaticWebQuery, StaticWebQueryR
         return 6;
     }
 
-    private static async Task handlePost(HttpClient client, (string, MediaRating) pair, int currentTry) {
-        var url = pair.Item1;
-        var queryResult = new StaticWebQueryResult(UriUtils.getDomain(url) ?? "unknown", pair.Item2);
+    private static async Task handlePost(HttpClient client, (string url, MediaRating rating, IList<string> tags) tuple, int currentTry) {
+        var url = tuple.url;
+        var queryResult = new StaticWebQueryResult(UriUtils.getDomain(url) ?? "unknown", tuple.rating, tuple.tags);
         
         try {
             RawMediaData.getWebData(client, queryResult, url).ContinueWith(async (imageTask) => {
@@ -146,7 +149,7 @@ public class StaticWebQueryType : MediaQueryType<StaticWebQuery, StaticWebQueryR
 
                     Thread.Sleep(250);
 
-                    await handlePost(client, pair, currentTry + 1);
+                    await handlePost(client, tuple, currentTry + 1);
                 }
                 else {
                     Plugin.logIfDebugging(source => source.LogError($"Was unable to handle Static Web Image [{url}] due to some unknown issue."));
@@ -158,26 +161,33 @@ public class StaticWebQueryType : MediaQueryType<StaticWebQuery, StaticWebQueryR
     }
 }
 
-public class StaticWebQueryResult : MediaQueryResult, EndecGetter<StaticWebQueryResult> {
-    private readonly string _domain;
-    private MediaRating _rating;
+public class StaticWebQueryResult : MediaQueryResult, EndecGetter<StaticWebQueryResult>, RatedMediaResult, TaggedMediaResult{
+    public string domain { get; }
+    public MediaRating rating { get; }
+    public IList<string> tags { get; }
     
     public static readonly StructEndec<StaticWebQueryResult> ENDEC = StructEndecBuilder.of(
-        Endecs.STRING.fieldOf<StaticWebQueryResult>("domain", s => s._domain),
-        MediaRatingUtils.ENDEC.fieldOf<StaticWebQueryResult>("rating", s => s._rating),
-        (domain, rating) => new StaticWebQueryResult(domain, rating)
+        Endecs.STRING.fieldOf<StaticWebQueryResult>("domain", s => s.domain),
+        MediaRatingUtils.ENDEC.fieldOf<StaticWebQueryResult>("rating", s => s.rating),
+        Endecs.STRING.listOf().fieldOf<StaticWebQueryResult>("tags", s => s.tags),
+        (domain, rating, tags) => new StaticWebQueryResult(domain, rating, tags)
     );
 
     public static Endec<StaticWebQueryResult> Endec() {
         return ENDEC;
     }
 
-    public StaticWebQueryResult(string domain, MediaRating rating) {
-        _domain = domain;
-        _rating = rating;
+    public StaticWebQueryResult(string domain, MediaRating rating, IList<string> tags) {
+        this.domain = domain;
+        this.rating = rating;
+        this.tags = tags;
     }
 
     public override Identifier getQueryTypeId() {
         return StaticWebQueryType.ID;
     }
+
+    public MediaRating getRating() => this.rating;
+
+    public bool hasTag(string tag) => this.tags.Contains(tag);
 }

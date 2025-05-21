@@ -1,5 +1,6 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.Linq;
 using System.Net.Http;
 using System.Net.Http.Headers;
 
@@ -66,5 +67,11 @@ public static class PairedTupleExtensions{
         if (right is null) throw new NullReferenceException("Unable to handle Either based tuple method due to the Left and Right values are both Null");
 
         return func(right);
+    }
+}
+
+public static class EnumerableExtensions {
+    public static IEnumerable<TSource> selectNonNull<TSource>(this IEnumerable<TSource?> source) {
+        return source.Where(source1 => source1 is not null).Select(source1 => source1!);
     }
 }
