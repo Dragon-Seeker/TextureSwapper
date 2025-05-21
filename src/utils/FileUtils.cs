@@ -7,8 +7,16 @@ namespace io.wispforest.textureswapper.utils;
 
 public class FileUtils {
     
-    public static string? getParentDirectory(string path) {
-        return Path.GetFileName(Path.GetDirectoryName(path));
+    public static string? getParentDirectory(string path, int backTrackAmount = 1) {
+        var dirName = path;
+
+        for (int i = 0; i < backTrackAmount; i++) {
+            dirName = Path.GetDirectoryName(dirName);
+        }
+        
+        var name = Path.GetFileName(dirName);
+        
+        return name;
     }
     
     public static void createFileFromBytes(byte[] data, string filePath) {

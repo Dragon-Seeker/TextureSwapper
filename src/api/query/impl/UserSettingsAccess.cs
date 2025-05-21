@@ -18,7 +18,7 @@ public class UserSettingsAccess {
 
     public static string? getUserSettings() {
         var folderPath = Environment.GetFolderPath(Environment.SpecialFolder.UserProfile);
-        var filePath = Path.Combine(folderPath, "texture_swapper_account_credentials.json");
+        var filePath = Path.Combine(folderPath, "texture_swapper_user_settings.json");
 
         if (!File.Exists(filePath)) return null;
         

@@ -95,18 +95,20 @@ public class LocalMediaQueryType : MediaQueryType<LocalMediaQuery, LocalMediaQue
             try {
                 var parentDir = FileUtils.getParentDirectory(file);
 
-                if (Plugin.RAW_NAMES.Contains(parentDir)) {
-                    parentDir = FileUtils.getParentDirectory(parentDir);
+                if (parentDir is not null && Plugin.RAW_NAMES.Contains(parentDir)) {
+                    parentDir = FileUtils.getParentDirectory(file, 2);
                 }
+                
+                
                 
                 MediaSwapperStorage.addIdAndTryToSetupType(file, unknownHostType: parentDir ?? "local");
                 
                 if (data.syncedTask) {
-                    loadTextureFromBytes(file, files.Item1, File.ReadAllBytes(file), data.rating, data.tags);
+                    loadTextureFromBytes(file, files.Item1, File.ReadAllBytes(file), data.rating, data.tags, parentDir);
                 } else {
                     MultiThreadHelper.run(createSemaphoreIdentifier(), () => File.ReadAllBytesAsync(file).ContinueWith(task => {
                         if (task.IsCompleted) {
-                            loadTextureFromBytes(file, files.Item1, task.Result, data.rating, data.tags);
+                            loadTextureFromBytes(file, files.Item1, task.Result, data.rating, data.tags, parentDir);
                         }
                     }));
                 }
@@ -117,11 +119,11 @@ public class LocalMediaQueryType : MediaQueryType<LocalMediaQuery, LocalMediaQue
         }
     }
     
-    private static void loadTextureFromBytes(string file, string origin, byte[]? bytes, MediaRating rating, IList<string> tags) {
+    private static void loadTextureFromBytes(string file, string origin, byte[]? bytes, MediaRating rating, IList<string> tags, string? parentDir) {
         try {
             if (bytes is null) return;
             
-            var rawMedia = new RawMediaData(file, bytes, new LocalMediaQueryResult(origin, rating, tags), unknownHostType: "local");
+            var rawMedia = new RawMediaData(file, bytes, new LocalMediaQueryResult(origin, rating, tags), unknownHostType: parentDir ?? "local");
 
             MediaSwapperStorage.storeRawMediaData(rawMedia);
         } catch(Exception e) {
