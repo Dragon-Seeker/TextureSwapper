@@ -21,7 +21,7 @@ public class LocalMediaQuery : MediaQuery, EndecGetter<LocalMediaQuery> {
     public static readonly StructEndec<LocalMediaQuery> ENDEC = StructEndecBuilder.of(
             Endecs.STRING.optionalFieldOf<LocalMediaQuery>("directory", query => query.directory, () => null),
             Endecs.STRING.listOf().optionalFieldOf<LocalMediaQuery>("files", query => query.files, () => []),
-            MediaRatingUtils.ENDEC.fieldOf<LocalMediaQuery>("rating", s => s.rating),
+            MediaRatingUtils.ENDEC.optionalFieldOf<LocalMediaQuery>("rating", s => s.rating, () => MediaRating.SAFE),
             Endecs.STRING.listOf().optionalFieldOf<LocalMediaQuery>("tags", s => s.tags, () => []),
             (directory, files, rating, tags) => new LocalMediaQuery(directory, files, rating, tags)
     );
