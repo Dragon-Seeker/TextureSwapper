@@ -7,10 +7,10 @@ using io.wispforest.textureswapper.utils;
 namespace io.wispforest.textureswapper.api;
 
 public class MediaIdentifiers {
-    public static readonly Identifier MISSING = Identifier.of("local", "swapper_missing_image");
-    public static readonly Identifier ERROR = Identifier.of("local", "swapper_error_image");
-    public static readonly Identifier LOADING = Identifier.of("local", "swapper_loading_image");
-    public static readonly Identifier CENSORED = Identifier.of("local", "swapper_censored_image");
+    public static Identifier MISSING { get; private set; }
+    public static Identifier ERROR { get; private set; }
+    public static Identifier LOADING { get; private set; }
+    public static Identifier CENSORED { get; private set; }
 
     public static List<Identifier> DEFAULT_DATA_VARIANTS => [MISSING, ERROR, LOADING, CENSORED];
     
@@ -20,6 +20,23 @@ public class MediaIdentifiers {
         var query = LocalMediaQuery.ofFiles(images.Select(s => Path.Combine(pluginFolder, s)));
 
         query.syncedTask = true;
+        
+        for (var i = 0; i < images.Count; i++) {
+            var file = images[i];
+            
+            var parentDir = FileUtils.getParentDirectory(file);
+
+            if (parentDir is not null && Plugin.RAW_NAMES.Contains(parentDir)) {
+                parentDir = FileUtils.getParentDirectory(file, 2);
+            }
+                
+            var id = Identifier.ofUri(file, parentDir ?? "local");
+
+            if (i == 0) MISSING = id;
+            else if (i == 1) ERROR = id;
+            else if (i == 2) LOADING = id;
+            else if (i == 3) CENSORED = id;
+        }
         
         LocalMediaQueryType.INSTANCE.executeQuery(query);
     }
