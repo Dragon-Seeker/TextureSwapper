@@ -1,4 +1,4 @@
-﻿# v1.1.7
+# v1.1.7
 - Make Local rating optional in data format
 - Update method on getting extension information from URL if unable to query data though URL using head
 - Fix issues with internal image querys for Missing, Error, Loading and Censored being broken due to local rework in v1.1.3
