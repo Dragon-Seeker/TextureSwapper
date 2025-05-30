@@ -41,5 +41,14 @@ public class MediaIdentifiers {
         }
         
         LocalMediaQueryType.INSTANCE.executeQuery(query);
+        
+        
+        foreach (var id in DEFAULT_DATA_VARIANTS) {
+            var handler = MediaSwapperStorage.getHandler(id);
+
+            if (handler is null) {
+                Plugin.Logger.LogError($"Unable to get the internal swapper media [{id}] which may cause errors, you have been warned!");
+            }
+        }
     }
 }
