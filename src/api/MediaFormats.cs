@@ -27,7 +27,7 @@ public static class MediaFormats {
     private static readonly Dictionary<string, MagickFormat> ENUM_MAP = new (); 
     
     public static MediaType getType(string uri) {
-        var extension = Path.GetExtension(uri).Replace(".", "");
+        var extension = UriUtils.getFormatFromUri(uri);
 
         return getFormat(extension).getType();
     }
@@ -43,7 +43,13 @@ public static class MediaFormats {
     }
 
     public static MediaFormat getFormatFromUrl(string url) {
-        return getFormat(HttpClientUtils.getFormatString(url));
+        var locatedFormat = HttpClientUtils.getFormatString(url);
+        
+        Plugin.logIfDebugging(source => {
+            source.LogInfo($"URL format is: {locatedFormat}");
+        });
+        
+        return getFormat(locatedFormat);
     }
 
     public static MediaFormat getFormat(string name) {

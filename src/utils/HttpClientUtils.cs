@@ -48,7 +48,9 @@ public class HttpClientUtils {
         
         if (hasResponse) format = dataGrabTask.Result;
 
-        return format ?? Path.GetExtension(url).Replace(".", "");
+        if (format is not null) return format;
+
+        return UriUtils.getFormatFromUri(url);
     }
     
     public static async void iteratePosts<T>(string type, int delayBetweenTask, HttpClient client, ConcurrentQueue<T> entries, Func<HttpClient, T, int, Task> taskCreator, Func<T, string> toURL)  {

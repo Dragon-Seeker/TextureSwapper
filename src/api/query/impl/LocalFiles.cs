@@ -99,8 +99,6 @@ public class LocalMediaQueryType : MediaQueryType<LocalMediaQuery, LocalMediaQue
                     parentDir = FileUtils.getParentDirectory(file, 2);
                 }
                 
-                
-                
                 MediaSwapperStorage.addIdAndTryToSetupType(file, unknownHostType: parentDir ?? "local");
                 
                 if (data.syncedTask) {

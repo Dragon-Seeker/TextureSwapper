@@ -1,4 +1,5 @@
 ﻿using System;
+using System.IO;
 using System.Net.Http;
 using System.Text.RegularExpressions;
 using System.Threading.Tasks;
@@ -25,6 +26,12 @@ public class UriUtils {
     
     public static string? getDomain(string url) {
         return getURI(url)?.Host;
+    }
+    
+    public static string getFormatFromUri(string url) {
+        var possiblePath = getURI(url)?.PathAndQuery?.Split("?")?[0] ?? url;
+        
+        return Path.GetExtension(possiblePath).Replace(".", "");
     }
     
     public static string? sanitizeName(string? hostname) {
