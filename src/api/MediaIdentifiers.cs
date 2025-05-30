@@ -17,12 +17,14 @@ public class MediaIdentifiers {
     internal static void initErrorImages(string pluginFolder) {
         IList<string> images = ["swapper_missing_image.png", "swapper_error_image.png", "swapper_loading_image.png", "swapper_censored_image.png"];
 
-        var query = LocalMediaQuery.ofFiles(images.Select(s => Path.Combine(pluginFolder, s)));
+        var files = images.Select(s => Path.Combine(pluginFolder, s)).ToList();
+        
+        var query = LocalMediaQuery.ofFiles(files);
 
         query.syncedTask = true;
         
-        for (var i = 0; i < images.Count; i++) {
-            var file = images[i];
+        for (var i = 0; i < files.Count; i++) {
+            var file = files[i];
             
             var parentDir = FileUtils.getParentDirectory(file);
 
