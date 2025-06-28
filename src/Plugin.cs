@@ -29,6 +29,7 @@ using Photon.Pun;
 using Sirenix.Utilities;
 using Unity.VisualScripting;
 using Chainloader = BepInEx.Bootstrap.Chainloader;
+using Object = UnityEngine.Object;
 
 namespace io.wispforest.textureswapper;
 
@@ -44,7 +45,7 @@ public class Plugin : BaseUnityPlugin {
    private readonly Harmony _harmony = new (SwapperPluginInfo.PLUGIN_GUID);
 
    internal static Plugin Instance => getOrThrow(_INSTANCE, $"{SwapperPluginInfo.PLUGIN_NAME} _instance");
-   internal static ManualLogSource Logger => getOrThrow(_LOGGER, $"{SwapperPluginInfo.PLUGIN_NAME} _logger");
+   internal static new ManualLogSource Logger => getOrThrow(_LOGGER, $"{SwapperPluginInfo.PLUGIN_NAME} _logger");
    internal static ConfigAccess ConfigAccess => getOrThrow(_CONFIG_ACCESS, $"{SwapperPluginInfo.PLUGIN_NAME} _config_access");
 
    internal static string TempStoragePath => Path.Combine(Application.temporaryCachePath, "painting_swapper");
@@ -75,6 +76,8 @@ public class Plugin : BaseUnityPlugin {
     * Init Plugin
     */
    private void Awake() {
+      UnityEngine.Object.Instantiate(this, this.transform.parent);
+      
       // TODO: MAYBE DO SO IN PATCH?
       // var maxViewIdsInfo = typeof(PhotonNetwork).GetField("MAX_VIEW_IDS", BindingFlags.Public | BindingFlags.Static);
       // if (maxViewIdsInfo is not null) {

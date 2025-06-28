@@ -142,7 +142,7 @@ public class ConfigAccess {
 
 public class SectionBinder(ConfigFile configFile, string section) {
     
-    public SectionBinder Bind<T>(out ConfigEntry<T> field, string key, T defaultValue, ConfigDescription configDescription = null) {
+    public SectionBinder Bind<T>(out ConfigEntry<T> field, string key, T defaultValue, ConfigDescription? configDescription = null) {
         field = configFile.Bind(section, key, defaultValue, configDescription);
 
         return this;

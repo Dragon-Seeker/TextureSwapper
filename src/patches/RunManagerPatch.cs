@@ -5,7 +5,7 @@ namespace io.wispforest.textureswapper.patches;
 
 [HarmonyPatch(typeof(RunManager))]
 internal static class RunManagerPatch {
-    [HarmonyPatch(nameof(RunManager.Awake))]
+    [HarmonyPatch("Awake")]
     [HarmonyPostfix]
     [HarmonyPriority(Priority.Last)]
     private static void AwakePatch() {
