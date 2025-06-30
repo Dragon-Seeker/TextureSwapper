@@ -9,46 +9,26 @@ namespace io.wispforest.textureswapper.api.query.impl;
 
 public class TagMangement {
     
-    public static IList<string> USER_GLOBAL_BLACKLIST = getUserGlobalBlacklist();
-    
     public static IList<string> getUserGlobalBlacklist() {
-        var data = UserSettingsAccess.getUserSettings();
+        var tags = UserSettingsAccess.getDefinedSettings()?.blackListData.tags;
 
-        if (data is not null) {
-            try {
-                var endec = Endecs.STRING.listOf()
-                        .structOf("blacklist")
-                        .structOf("user_defined_tags");
-                    
-                return JsonUtils.parseFromString(data, endec);
-            } catch (Exception e) {
-                Plugin.Logger.LogError($"Unable to decode the texture swapper user settings to get global whitelist tags.");
-                Plugin.Logger.LogError(e);
-            }
-        }
+        if (tags is not null) return tags;
         
-        return [];
-    }
+        Plugin.Logger.LogError($"Unable to decode the texture swapper user settings to get global blacklist tags.");
 
-    public static IList<string> USER_GLOBAL_WHITELIST = getUserGlobalWhitelist();
+        return [];
+
+    }
     
     public static IList<string> getUserGlobalWhitelist() {
-        var data = UserSettingsAccess.getUserSettings();
+        var tags = UserSettingsAccess.getDefinedSettings()?.whiteListData.tags;
 
-        if (data is not null) {
-            try {
-                var endec = Endecs.STRING.listOf()
-                        .structOf("whitelist")
-                        .structOf("user_defined_tags");
-                    
-                return JsonUtils.parseFromString(data, endec);
-            } catch (Exception e) {
-                Plugin.Logger.LogError($"Unable to decode the texture swapper user settings to get global whitelist tags.");
-                Plugin.Logger.LogError(e);
-            }
-        }
+        if (tags is not null) return tags;
         
+        Plugin.Logger.LogError($"Unable to decode the texture swapper user settings to get global whitelist tags.");
+
         return [];
+
     }
     
     public static IList<string> getBlackListTags(bool authorizedUser, List<string> extraBlackList) {
@@ -61,8 +41,8 @@ public class TagMangement {
         
         configBlackListTags.RemoveAll(Plugin.ConfigAccess.whiteListTags.Contains);
 
-        configBlackListTags.AddRange(USER_GLOBAL_BLACKLIST);
-        configBlackListTags.RemoveAll(USER_GLOBAL_WHITELIST.Contains);
+        configBlackListTags.AddRange(getUserGlobalBlacklist());
+        configBlackListTags.RemoveAll(getUserGlobalWhitelist().Contains);
 
         return configBlackListTags;
     }

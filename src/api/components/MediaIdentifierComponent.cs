@@ -49,7 +49,8 @@ public class MediaIdentifierComponent : MonoBehaviour, IPunObservable {
             Plugin.Logger.LogError("Unable to handle networking for media id component: ");
             Plugin.Logger.LogError(e);
             
-            stream.dumpPhotonStreamToLog(logMessageAction => Plugin.logIfDebugging(source => logMessageAction(source.LogWarning)));
+            Plugin.Logger.LogError("Dumping the given PhotonStream to Log for debug info: ");
+            stream.dumpPhotonStreamToLog(logMessageAction => logMessageAction(Plugin.Logger.LogWarning));
         }
     }
 }

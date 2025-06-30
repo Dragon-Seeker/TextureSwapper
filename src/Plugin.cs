@@ -76,8 +76,6 @@ public class Plugin : BaseUnityPlugin {
     * Init Plugin
     */
    private void Awake() {
-      UnityEngine.Object.Instantiate(this, this.transform.parent);
-      
       // TODO: MAYBE DO SO IN PATCH?
       // var maxViewIdsInfo = typeof(PhotonNetwork).GetField("MAX_VIEW_IDS", BindingFlags.Public | BindingFlags.Static);
       // if (maxViewIdsInfo is not null) {
@@ -94,13 +92,22 @@ public class Plugin : BaseUnityPlugin {
       
       // -- Plugin startup logic
       
+      // Setup Logger for access outside the plugin context
+      _LOGGER = base.Logger;
+      
       _INSTANCE = this;
       
       // Setup config access for later
-      _CONFIG_ACCESS = new ConfigAccess(Config);
+      _CONFIG_ACCESS = new ConfigAccess(Config, MetadataHelper.GetMetadata(this));
+
+      var fieldInfo = typeof(BaseUnityPlugin).GetRuntimeFields()
+            .Where(info => {
+               _LOGGER.LogError(info.Name);
+               return info.Name.Contains("Config");
+            })
+            .First();
+      fieldInfo?.SetValue(this, _CONFIG_ACCESS);
       
-      // Setup Logger for access outside the plugin context
-      _LOGGER = base.Logger;
       base.Logger.LogInfo($"{SwapperPluginInfo.PLUGIN_NAME} has begun setup...");
 
       logIfDebugging(source => source.LogError($"Using the following path to store files temporarily: " + TempStoragePath));
