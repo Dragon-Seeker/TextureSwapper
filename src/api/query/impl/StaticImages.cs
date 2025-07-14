@@ -92,8 +92,10 @@ public class StaticWebQueryType : MediaQueryType<StaticWebQuery, StaticWebQueryR
 
         var queue = new ConcurrentQueue<(string url, MediaRating rating, IList<string> tags)>(adjustedUrls.Select(s => (s, data.rating, data.tags)));
         
+        var guid = data.guid;
+        
         MultiThreadHelper.run(createSemaphoreIdentifier(), () => {
-            HttpClientUtils.iteratePosts("Web", 300, HttpClientUtils.createClient(), queue, handlePost, tuple => tuple.Item1);
+            HttpClientUtils.iteratePosts("Web", 300, HttpClientUtils.createClient(), queue, (client, tuple, arg3) => handlePost(client, guid, tuple, arg3), tuple => tuple.Item1);
         });
     }
 
@@ -124,9 +126,9 @@ public class StaticWebQueryType : MediaQueryType<StaticWebQuery, StaticWebQueryR
         return 6;
     }
 
-    private static async Task handlePost(HttpClient client, (string url, MediaRating rating, IList<string> tags) tuple, int currentTry) {
+    private static async Task handlePost(HttpClient client, Guid guid, (string url, MediaRating rating, IList<string> tags) tuple, int currentTry) {
         var url = tuple.url;
-        var queryResult = new StaticWebQueryResult(UriUtils.getDomain(url) ?? "unknown", tuple.rating, tuple.tags);
+        var queryResult = new StaticWebQueryResult(guid, UriUtils.getDomain(url) ?? "unknown", tuple.rating, tuple.tags);
         
         try {
             RawMediaData.getWebData(client, queryResult, url).ContinueWith(async (imageTask) => {
@@ -149,7 +151,7 @@ public class StaticWebQueryType : MediaQueryType<StaticWebQuery, StaticWebQueryR
 
                     Thread.Sleep(250);
 
-                    await handlePost(client, tuple, currentTry + 1);
+                    await handlePost(client, guid, tuple, currentTry + 1);
                 }
                 else {
                     Plugin.logIfDebugging(source => source.LogError($"Was unable to handle Static Web Image [{url}] due to some unknown issue."));
@@ -170,14 +172,14 @@ public class StaticWebQueryResult : MediaQueryResult, EndecGetter<StaticWebQuery
         Endecs.STRING.fieldOf<StaticWebQueryResult>("domain", s => s.domain),
         MediaRatingUtils.ENDEC.fieldOf<StaticWebQueryResult>("rating", s => s.rating),
         Endecs.STRING.listOf().fieldOf<StaticWebQueryResult>("tags", s => s.tags),
-        (domain, rating, tags) => new StaticWebQueryResult(domain, rating, tags)
+        (domain, rating, tags) => new StaticWebQueryResult(MediaQueryResult.NETWORKED_GUID, domain, rating, tags)
     );
 
     public static Endec<StaticWebQueryResult> Endec() {
         return ENDEC;
     }
 
-    public StaticWebQueryResult(string domain, MediaRating rating, IList<string> tags) {
+    public StaticWebQueryResult(Guid guid, string domain, MediaRating rating, IList<string> tags) : base(guid) {
         this.domain = domain;
         this.rating = rating;
         this.tags = tags;

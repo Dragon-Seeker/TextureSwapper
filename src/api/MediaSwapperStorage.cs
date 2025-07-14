@@ -39,8 +39,12 @@ public class MediaSwapperStorage {
     
     //--
 
+    public static ProcessingState getMediaState(Identifier identifier) {
+        return ID_TO_STATE.GetValueOrDefault(identifier, ProcessingState.NONE);
+    }
+    
     public static MediaType getMediaType(Identifier identifier) {
-        return ID_TO_MEDIA_TYPE.ContainsKey(identifier) ? ID_TO_MEDIA_TYPE[identifier] : MediaType.UNKNOWN;
+        return ID_TO_MEDIA_TYPE.GetValueOrDefault(identifier, MediaType.UNKNOWN);
     }
 
     public static bool addIdAndTryToSetupType(string uri, string unknownHostType = "unknown") {
@@ -113,6 +117,30 @@ public class MediaSwapperStorage {
 
     public static FullMediaData? getFullData(Identifier id) {
         return new FullMediaData(id, getInfo(id) ?? MediaInfo.ofError(""), getResult(id) ?? new EmptyQueryResult());
+    }
+
+    public static void removeMediaWithGuid(Guid guid) {
+        MainThreadHelper.runOnMainThread(() => {
+            var removedIds = new HashSet<Identifier>();
+            
+            foreach (var entry in ID_TO_MEDIA_QUERY_RESULT) {
+                if (entry.Value.guid.Equals(guid)) {
+                    removedIds.Add(entry.Key);
+                }
+            }
+            
+            foreach (var id in removedIds) {
+                ALL_MEDIA_IDS.Remove(id);
+                
+                WAITING_TO_LOADED.Remove(id, out _);
+                
+                ID_TO_STATE.Remove(id, out _);
+                ID_TO_MEDIA_TYPE.Remove(id, out _);
+                ID_TO_MEDIA_INFO.Remove(id, out _);
+                ID_TO_MEDIA_QUERY_RESULT.Remove(id, out _);
+                ID_TO_SWAPPER.Remove(id, out _);
+            }
+        });
     }
     
     //--
@@ -383,6 +411,7 @@ public class IdentifierComparer : IComparer<Identifier> {
 }
 
 public enum ProcessingState {
+    NONE,
     QUERIED,
     LOADED,
     PROCESSED

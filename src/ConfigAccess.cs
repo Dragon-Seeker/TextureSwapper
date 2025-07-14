@@ -24,9 +24,12 @@ public class ConfigAccess : ConfigFile, IDictionary<ConfigDefinition, ConfigEntr
     private readonly ConfigEntry<String> PICTURE_TEXTURE_TARGETS;
     private readonly ConfigEntry<bool> RESTRICTED_QUERIES;
     
+    private readonly ConfigEntry<int> DYNAMIC_QUERIES_LEVEL_COUNT;
+    
     private readonly ConfigEntry<bool> ONLY_FIRST_ANIMATION_FRAME;
     private readonly ConfigEntry<bool> ALLOW_TRANSCODING_VIDEOS;
     private readonly ConfigEntry<bool> PRIORITIZE_NEW_PICTURES;
+    private readonly ConfigEntry<bool> PRIORITIZE_NEW_PICTURES_ACROSS_LEVELS;
     
     private readonly ConfigEntry<float> MIN_AUDIO_DISTANCE;
     private readonly ConfigEntry<float> MAX_AUDIO_DISTANCE;
@@ -59,9 +62,11 @@ public class ConfigAccess : ConfigFile, IDictionary<ConfigDefinition, ConfigEntr
         //--
         
         primaryConfigFile.Section("SwapperSettings")
+                .Bind(out DYNAMIC_QUERIES_LEVEL_COUNT, "DynamicQueriesLevelCount", 4, "Max levels required to complete before dynamic queries are reloaded for new entries")
                 .Bind(out ONLY_FIRST_ANIMATION_FRAME, "OnlyFirstAnimationFrame", false, "Only uses the first frame of animation instead of all frames")
                 .Bind(out ALLOW_TRANSCODING_VIDEOS, "AllowTranscodingVideos", false, "Allows for the ability to transcode video if codec or format is not directly support by unity")
                 .Bind(out PRIORITIZE_NEW_PICTURES, "PrioritizeNewPictures", true, "Attempts to place newer pictures first over already existing pictures")
+                .Bind(out PRIORITIZE_NEW_PICTURES_ACROSS_LEVELS, "PrioritizeNewPicturesAcrossLevels", true, "Transfers PrioritizeNewPictures data across levels to fully  place newer pictures first over already existing pictures")
                 .Bind(out MIN_AUDIO_DISTANCE, "MinAudioDistance", 0.5f, "Minimum distance from the swapped asset in which audio will stay at maximum")
                 .Bind(out MAX_AUDIO_DISTANCE, "MaxAudioDistance", 6.5f, "Maximum distance from the swapped asset in which audio can be heard");
         
@@ -78,44 +83,36 @@ public class ConfigAccess : ConfigFile, IDictionary<ConfigDefinition, ConfigEntr
         this.Section("User Specific")
                 .Bind("DebugLogging", currentSettings.debugLogging, false, "Enables some useful debug logging to check and or validate if things are going properly", 
                         newValue => UserSettingsAccess.updateSettings(settings => settings.debugLogging = newValue).debugLogging)
-                
                 .Bind("RestrictiveQueries", currentSettings.restrictiveQueries, true, "Will attempt to restrict the queries allowed as an attempt to be safer with image content that is requested", 
                         newValue => UserSettingsAccess.updateSettings(settings => settings.restrictiveQueries = newValue).restrictiveQueries)
-                
                 .Bind("DisallowedTags", currentSettings.blackListData.tags.Join(delimiter: ","), "", "A list of tags that are disallowed from being shown, Seperated by commas (,) without any spaces", 
                         newValue => UserSettingsAccess.updateSettings(settings => settings.blackListData.tags = newValue.Split(",").ToList()).blackListData.tags.Join(delimiter: ","))
-                
                 .Bind("AllowedTags", currentSettings.whiteListData.tags.Join(delimiter: ","), "", "A list of tags that are allowed to be shown, Seperated by commas (,) without any spaces", 
                         newValue => UserSettingsAccess.updateSettings(settings => settings.whiteListData.tags = newValue.Split(",").ToList()).whiteListData.tags.Join(delimiter: ","));
-
         
-        var isDebugRefreshPresent = debugLogging() && clientSideOnly();
-        
-        // TODO: REMOVE LATER?
-        this.primaryConfigFile.SaveOnConfigSet = !(isDebugRefreshPresent);
-        
-        if (isDebugRefreshPresent) {
-            var CLIENT_SIDE_ONLY_REFRESH = primaryConfigFile.Bind("Common", "ClientSideRefresh", false, new ConfigDescription("Useful feature to try and reload stuff after changes to config for Client Side only stuff"));
+        this.Section("Common").Bind("AttemptClientSideRefresh", false, "Useful feature to try and reload stuff after changes to config for Client Side only stuff",
+                entry => {
+                    entry.SettingsChangedSafe(configEntry => {
+                        configEntry.Value = false;
 
-            CLIENT_SIDE_ONLY_REFRESH.SettingChanged += (sender, args) => {
-                primaryConfigFile.Reload();
-            
-                Scene activeScene = SceneManager.GetActiveScene();
-            
-                GameObject[] rootObjects = activeScene.GetRootGameObjects();
+                        primaryConfigFile.Reload();
 
-                // Iterate through the root GameObjects and print their names.
-                foreach (GameObject rootObject in rootObjects) {
-                    if (!rootObject.name.Equals("Level Generator")) continue;
-                
-                    SwapperComponentSetupUtils.unswapScene(rootObject);
-                
-                    ActiveSwapperHolder.getOrCreate().reset();
-                
-                    SwapperComponentSetupUtils.commonSide(rootObject);
-                }
-            };
-        }
+                        Scene activeScene = SceneManager.GetActiveScene();
+
+                        GameObject[] rootObjects = activeScene.GetRootGameObjects();
+
+                        // Iterate through the root GameObjects and print their names.
+                        foreach (GameObject rootObject in rootObjects) {
+                            if (!rootObject.name.Equals("Level Generator")) continue;
+
+                            SwapperComponentSetupUtils.unswapScene(rootObject);
+
+                            ActiveSwapperHolder.getOrCreate().reset();
+
+                            SwapperComponentSetupUtils.commonSide(rootObject);
+                        }
+                    });
+                });
         
         primaryConfigFile.SettingChanged += (_, _) => setupValues();
         
@@ -135,10 +132,12 @@ public class ConfigAccess : ConfigFile, IDictionary<ConfigDefinition, ConfigEntr
     public List<string> pictureTextureTargets { get; private set; }
     public bool restrictiveQueries() => RESTRICTED_QUERIES.Value;
     public bool enableGlobalBlacklist() => ENABLE_GLOBAL_BLACKLIST.Value;
-    
+
+    public int dynamicQueriesLevelCount() => DYNAMIC_QUERIES_LEVEL_COUNT.Value;
     public bool onlyFirstAnimationFrame() => ONLY_FIRST_ANIMATION_FRAME.Value;
     public bool allowTranscodingVideos() => ALLOW_TRANSCODING_VIDEOS.Value;
     public bool prioritizeNewPictures() => PRIORITIZE_NEW_PICTURES.Value;
+    public bool prioritizeNewPicturesAcrossLevels() => PRIORITIZE_NEW_PICTURES_ACROSS_LEVELS.Value;
     public float minAudioDistance() => MIN_AUDIO_DISTANCE.Value;
     public float maxAudioDistance() => MAX_AUDIO_DISTANCE.Value;
     
@@ -157,7 +156,9 @@ public class ConfigAccess : ConfigFile, IDictionary<ConfigDefinition, ConfigEntr
     new List<string>([
             "\"^(?=.*painting.*)((?!.*frame.*)).*$\"mi",
             "\"^(magazine\\d*) \\(Instance\\)$\"mi",
-            "\"(magazine stack)\"mi"
+            "\"(magazine stack)\"mi",
+            "\"(Graffiti)\"mi"
+            
     ]).Join(delimiter: ",");
     
     //--
@@ -226,32 +227,34 @@ public class SectionBinder(ConfigFile configFile, string section) {
     
     public SectionBinder Bind<T>(out ConfigEntry<T> field, string key, T defaultValue, ConfigDescription? configDescription = null) {
         field = configFile.Bind(section, key, defaultValue, configDescription);
-
+        
         return this;
     }
 
     public SectionBinder Bind<T>(out ConfigEntry<T> field, string key, T defaultValue, string description) {
         field = configFile.Bind(section, key, defaultValue, description);
-        
+
+        return this;
+    }
+    
+    public SectionBinder Bind<T>(string key, T defaultValue, string description, Action<ConfigEntry<T>> action) {
+        var field = configFile.Bind(section, key, defaultValue, description);
+
+        action.Invoke(field);
+
         return this;
     }
     
     public SectionBinder Bind<T>(string key, T defaultValue, T baseValue, string description, Func<T, T> onChangeCallback) {
-        bool isLocked = false;
-                
         var entry = configFile.Bind(section, key, defaultValue, description);
 
         entry.Value = baseValue;
                 
-        entry.SettingChanged += (sender, _) => {
-            if (isLocked) return;
-            Plugin.logIfDebugging(() => $"{key} value has been updated! Type: [{sender.GetType().Name}]");
-            if (sender is ConfigEntry<T> e) {
-                isLocked = true;
-                e.Value = onChangeCallback(e.Value);
-                isLocked = false;
-            }
-        };
+        entry.SettingsChangedSafe(e => {
+            e.Value = onChangeCallback(e.Value);
+            
+            Plugin.logIfDebugging(() => $"{key} value has been updated! Value: [{e.Value}]");
+        });
         
         return this;
     }
@@ -260,6 +263,19 @@ public class SectionBinder(ConfigFile configFile, string section) {
 public static class ConfigFileExtensions {
     public static SectionBinder Section(this ConfigFile file, string section) {
         return new SectionBinder(file, section);
+    }
+    
+    public static void SettingsChangedSafe<T>(this ConfigEntry<T> entry, Action<ConfigEntry<T>> onChangeCallback) {
+        bool isLocked = false;
+        entry.SettingChanged += (sender, _) => {
+            if (isLocked || !(sender is ConfigEntry<T> changedEntry)) return;
+
+            isLocked = true;
+
+            onChangeCallback(changedEntry);
+            
+            isLocked = false;
+        };
     }
 }
 

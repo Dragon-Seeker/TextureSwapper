@@ -9,13 +9,13 @@ namespace io.wispforest.textureswapper.utils;
 public class Extensions { }
 
 public static class DictionaryExtensions {
-    public static V computeIfAbsent<K,V>(this Dictionary<K, V> dict, K k, Func<K, V> func) {
+    public static V computeIfAbsent<K,V>(this IDictionary<K, V> dict, K k, Func<K, V> func) {
         if (!dict.ContainsKey(k)) dict[k] = func(k);
         
         return dict[k];
     }
     
-    public static V? removeIfPresent<K,V>(this Dictionary<K, V> dict, K k) where V : class {
+    public static V? removeIfPresent<K,V>(this IDictionary<K, V> dict, K k) where V : class {
         V? v = null;
 
         if (dict.ContainsKey(k)) {
@@ -26,6 +26,13 @@ public static class DictionaryExtensions {
         
         return v;
     }
+    
+    public static void forEach<K,V>(this IDictionary<K, V> dict, Action<K, V> func) {
+        foreach (var keyValuePair in dict) {
+            func(keyValuePair.Key, keyValuePair.Value);
+        }
+    }
+
 }
 
 public static class IListExtensions {

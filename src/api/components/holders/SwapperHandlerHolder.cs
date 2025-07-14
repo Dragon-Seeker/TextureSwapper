@@ -96,8 +96,19 @@ public class SwapperHandlerHolder : MonoBehaviour {
 public static class GameObjectExtension {
     public static void setSwapperHolder(this GameObject gameObject, MeshRenderer mesh, int i, UnityEngine.Material material, Action<UnityEngine.Material>setAction, MeshSwapper? handler) {
         if (gameObject is null) return;
-        
-        gameObject.GetOrAddComponent<SwapperHandlerHolder>().setCurrentMeshHandlerAndSwap(gameObject, mesh, i, material, setAction, handler);
+
+        if (handler is not null) {
+            Plugin.logIfDebugging(() => $"Handler {handler.id()} was found to be in the state {MediaSwapperStorage.getMediaState(handler.id())}");
+        }
+
+        try {
+            gameObject.GetOrAddComponent<SwapperHandlerHolder>().setCurrentMeshHandlerAndSwap(gameObject, mesh, i, material, setAction, handler);
+        } catch (Exception e) {
+            Plugin.logIfDebugging((source) => {
+                source.LogError($"Unable to handle setting swapper holder due to an error.");
+                source.LogError(e);
+            });
+        }
     }
     
     public static void tryToAdjustMaterial(this GameObject gameObject, System.Action<MeshRenderer, int, UnityEngine.Material, Action<UnityEngine.Material>> onMatchEntry) { 

@@ -43,6 +43,7 @@ Info about the data format to making queries will be documented within the futur
 - Add Support for Youtube and other Video Platforms
 
 ### Known issues
+- DOSE NOT WORK IN SINGLEPLAYER
 - Random network incompatibilities
 - Some Image URL's are not valid due to how the URL pattern currently works
 - Local files are copied to cache instead of being used directly

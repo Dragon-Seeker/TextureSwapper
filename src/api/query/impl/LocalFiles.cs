@@ -6,6 +6,7 @@ using System.Linq;
 using System.Net.Http;
 using System.Text.RegularExpressions;
 using System.Threading.Tasks;
+using BepInEx;
 using ImageMagick;
 using io.wispforest.impl;
 using io.wispforest.textureswapper.api.query;
@@ -14,7 +15,11 @@ using UnityEngine;
 
 namespace io.wispforest.textureswapper.api.query.impl;
 
-public class LocalFiles { }
+public class LocalFiles {
+    public static void init() {
+        MediaQueryTypeRegistry.register<LocalMediaQueryType, LocalMediaQuery, LocalMediaQueryResult>(LocalMediaQueryType.INSTANCE);
+    }
+}
 
 public class LocalMediaQuery : MediaQuery, EndecGetter<LocalMediaQuery> {
 
@@ -85,6 +90,8 @@ public class LocalMediaQueryType : MediaQueryType<LocalMediaQuery, LocalMediaQue
     public override void executeQuery(LocalMediaQuery data) {
         var files = data.gatherFiles();
         
+        var guid = data.guid;
+        
         foreach (var file in files.Item2) {
             if (Regex.IsMatch(file, @"(\.\.(\\|\/|$))")) {
                 Plugin.logIfDebugging(source => source.LogError($"Unable to handle the given Local file [{file}] as it matches against the pattern [{@"(\.\.(\\|\/|$))"}] possibly indicating Path Traversal!"));
@@ -102,11 +109,11 @@ public class LocalMediaQueryType : MediaQueryType<LocalMediaQuery, LocalMediaQue
                 MediaSwapperStorage.addIdAndTryToSetupType(file, unknownHostType: parentDir ?? "local");
                 
                 if (data.syncedTask) {
-                    loadTextureFromBytes(file, files.Item1, File.ReadAllBytes(file), data.rating, data.tags, parentDir);
+                    loadTextureFromBytes(guid, file, files.Item1, File.ReadAllBytes(file), data.rating, data.tags, parentDir);
                 } else {
                     MultiThreadHelper.run(createSemaphoreIdentifier(), () => File.ReadAllBytesAsync(file).ContinueWith(task => {
                         if (task.IsCompleted) {
-                            loadTextureFromBytes(file, files.Item1, task.Result, data.rating, data.tags, parentDir);
+                            loadTextureFromBytes(guid, file, files.Item1, task.Result, data.rating, data.tags, parentDir);
                         }
                     }));
                 }
@@ -117,11 +124,11 @@ public class LocalMediaQueryType : MediaQueryType<LocalMediaQuery, LocalMediaQue
         }
     }
     
-    private static void loadTextureFromBytes(string file, string origin, byte[]? bytes, MediaRating rating, IList<string> tags, string? parentDir) {
+    private static void loadTextureFromBytes(Guid guid, string file, string origin, byte[]? bytes, MediaRating rating, IList<string> tags, string? parentDir) {
         try {
             if (bytes is null) return;
             
-            var rawMedia = new RawMediaData(file, bytes, new LocalMediaQueryResult(origin, rating, tags), unknownHostType: parentDir ?? "local");
+            var rawMedia = new RawMediaData(file, bytes, new LocalMediaQueryResult(guid, origin, rating, tags), unknownHostType: parentDir ?? "local");
 
             MediaSwapperStorage.storeRawMediaData(rawMedia);
         } catch(Exception e) {
@@ -135,14 +142,14 @@ public class LocalMediaQueryResult : MediaQueryResult, EndecGetter<LocalMediaQue
             Endecs.STRING.fieldOf<LocalMediaQueryResult>("origin", s => s.origin),
             MediaRatingUtils.ENDEC.fieldOf<LocalMediaQueryResult>("rating", s => s.rating),
             Endecs.STRING.listOf().fieldOf<LocalMediaQueryResult>("tags", s => s.tags),
-            (info, rating, tags) => new LocalMediaQueryResult(info, rating, tags)
+            (info, rating, tags) => new LocalMediaQueryResult(MediaQueryResult.NETWORKED_GUID, info, rating, tags)
     );
     
     public string origin { get; }
     public MediaRating rating { get; }
     public IList<string> tags { get; }
 
-    public LocalMediaQueryResult(string origin, MediaRating rating, IList<string> tags) {
+    public LocalMediaQueryResult(Guid guid, string origin, MediaRating rating, IList<string> tags) : base(guid){
         this.origin = origin;
         this.rating = rating;
         this.tags = tags;

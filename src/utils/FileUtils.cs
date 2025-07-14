@@ -35,20 +35,20 @@ public class FileUtils {
     }
 
     public static async Task<byte[]?> loadDataFromFile(FileLookupHelper helper) {
-        var value = await loadDataFromFile(helper.getPrimaryPattern());
+        var value = await loadDataFromFile(helper.getPrimaryPattern(), helper.shouldRefreshFile());
 
         if (value is null) {
-            value = await loadDataFromFile(helper.getSecoundaryPattern());
+            value = await loadDataFromFile(helper.getSecoundaryPattern(), helper.shouldRefreshFile());
         }
 
         return value;
     }
 
-    public static async Task<byte[]?> loadDataFromFile((string directory, string filePattern) tuple) {
-        return await loadDataFromFile(tuple.directory, tuple.filePattern);
+    public static async Task<byte[]?> loadDataFromFile((string directory, string filePattern) tuple, bool shouldRefreshFileAccess = false) {
+        return await loadDataFromFile(tuple.directory, tuple.filePattern, shouldRefreshFileAccess);
     }
 
-    public static async Task<byte[]?> loadDataFromFile(string directory, string filePattern) {
+    public static async Task<byte[]?> loadDataFromFile(string directory, string filePattern, bool shouldRefreshFileAccess = false) {
         if (!string.IsNullOrEmpty(directory) && Directory.Exists(directory) && !string.IsNullOrEmpty(filePattern) ) {
             try {
                 var files = Directory.GetFiles(directory, filePattern);
@@ -56,7 +56,11 @@ public class FileUtils {
                 if (files.Length > 0) {
                     var filePath = files[0];
 
-                    return await File.ReadAllBytesAsync(filePath);
+                    var result =  await File.ReadAllBytesAsync(filePath);
+                    
+                    if (shouldRefreshFileAccess) File.SetLastAccessTime(filePath, DateTime.Now);
+
+                    return result;
                 }
             } catch (Exception ex) {
                 Plugin.logIfDebugging(source => source.LogError($"Unable to read file for the given path [{Path.Combine(directory, filePattern)}]: {ex}"));
@@ -95,7 +99,7 @@ public class FileUtils {
     }
 }
 
-public class FileLookupHelper(string directory, string name, string filePattern) {
+public class FileLookupHelper(string directory, string name, string filePattern, bool attemptTimerRefresh = false) {
     public (string directory, string filePattern) getPrimaryPattern() {
         return new(directory, filePattern);
     }
@@ -107,4 +111,6 @@ public class FileLookupHelper(string directory, string name, string filePattern)
     public string getFilePath() {
         return Path.Combine(directory, filePattern);
     }
+
+    public bool shouldRefreshFile() => attemptTimerRefresh;
 }

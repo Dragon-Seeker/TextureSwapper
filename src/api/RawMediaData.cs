@@ -156,7 +156,7 @@ public record RawMediaData {
 
         basePath = Path.Combine(basePath, id.Namespace);
 
-        return new FileLookupHelper(basePath, id.Path, $"{id.Path}.{extension}");
+        return new FileLookupHelper(basePath, id.Path, $"{id.Path}.{extension}", true);
     }
 }
 

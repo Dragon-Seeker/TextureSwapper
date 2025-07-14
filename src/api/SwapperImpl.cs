@@ -4,6 +4,7 @@ using io.wispforest.textureswapper.api.components.holders;
 using io.wispforest.textureswapper.utils;
 using Unity.VisualScripting;
 using UnityEngine;
+using Object = System.Object;
 
 namespace io.wispforest.textureswapper.api;
 
@@ -13,6 +14,8 @@ public interface SwapperBase {
     public SwapperInteraction[] interactions();
 
     public bool allowMultiple() => true;
+    
+    internal void remove() { }
 }
 
 public interface GeneralSwapper : SwapperBase {
@@ -191,6 +194,10 @@ public class MaterialSwapper(Identifier id, UnityEngine.Material material) : Swa
     }
 
     public override SwapperInteraction[] interactions() => [SwapperInteraction.TEXTURE];
+
+    public void remove() {
+        UnityEngine.Object.Destroy(material);
+    }
 }
 
 public class MaterialListSwapper(Identifier id, UnityEngine.Material initialMaterial, Func<PNGImageSequence> sequenceConstructor) : SwapperImpl(id), MeshSwapper {
@@ -210,4 +217,8 @@ public class MaterialListSwapper(Identifier id, UnityEngine.Material initialMate
     }
 
     public override SwapperInteraction[] interactions() => [SwapperInteraction.TEXTURE];
+    
+    public void remove() {
+        UnityEngine.Object.Destroy(initialMaterial);
+    }
 }

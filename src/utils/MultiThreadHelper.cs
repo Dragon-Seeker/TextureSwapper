@@ -1,9 +1,13 @@
 ﻿using System;
+using System.Collections.Concurrent;
 using System.Collections.Generic;
+using System.Diagnostics;
+using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
 using io.wispforest.textureswapper.api;
 using io.wispforest.textureswapper.api.query;
+using UnityEngine;
 
 namespace io.wispforest.textureswapper.utils;
 
@@ -19,6 +23,7 @@ public class MultiThreadHelper {
     public static readonly MultiThreadHelper INSTANCE = new (1);
 
     private readonly Dictionary<SemaphoreIdentifier, SemaphoreSlim> ID_TO_SEMAPHORE = new ();
+    private readonly ConcurrentDictionary<SemaphoreIdentifier, ConcurrentDictionary<Guid, TaskState>> ID_TO_CURRENT_TASKS = new();
 
     public MultiThreadHelper(int defaultMaxConcurrency) {
         ID_TO_SEMAPHORE[DEFAULT_GROUP] = new SemaphoreSlim(defaultMaxConcurrency, defaultMaxConcurrency);
@@ -34,50 +39,134 @@ public class MultiThreadHelper {
 
     public Task runAndExecuteAsync(SemaphoreIdentifier id, Action action) {
         var semaphore = ID_TO_SEMAPHORE.computeIfAbsent(id, id1 => id1.createSemaphore());
+        var guid = Guid.NewGuid();
+
+        var state = getOrCreateState(id, guid);
         
-        return Task.Run(async () => {
-            await executeAsync(semaphore, () => {
+        var task = Task.Run(async () => {
+            await executeAsync(id, guid, semaphore, () => {
                 action();
 
                 return Task.CompletedTask;
             });
+
+            ID_TO_CURRENT_TASKS[id].removeIfPresent(guid);
         });
+        
+        state.setTask(task);
+        
+        return task;
     }
     
-    public static async Task executeAsync(SemaphoreSlim semaphore, Func<Task> taskDelegate) {
+    public Task<T> runAndExecuteAsync<T>(SemaphoreIdentifier id, Func<T> action) {
+        var semaphore = ID_TO_SEMAPHORE.computeIfAbsent(id, id1 => id1.createSemaphore());
+        var guid = Guid.NewGuid();
+
+        var state = getOrCreateState(id, guid);
+        
+        var task = Task.Run(async () => {
+            var result = await executeAsync<T>(id, guid, semaphore, () => Task.FromResult(action()));
+
+            ID_TO_CURRENT_TASKS[id].removeIfPresent(guid);
+            
+            return result;
+        });
+        
+        state.setTask(task);
+        
+        return task;
+    }
+
+    private TaskState getOrCreateState(SemaphoreIdentifier id, Guid guid) {
+        return ID_TO_CURRENT_TASKS.computeIfAbsent(id, _ => new ConcurrentDictionary<Guid, TaskState>())
+                .computeIfAbsent(guid, guid1 => new TaskState(guid1));
+    }
+    
+    private async Task executeAsync(SemaphoreIdentifier id, Guid guid, SemaphoreSlim semaphore, Func<Task> taskDelegate) {
         Plugin.logIfDebugging(source => source.LogInfo("Going to check flag barrier"), predicate: shouldPrintDebugInfo);
+        
+        var state = getOrCreateState(id, guid);
+        
+        state.setStage(Stage.WAITING);
         
         await semaphore.WaitAsync(); // Acquire a permit
 
         Plugin.logIfDebugging(source => source.LogInfo("Starting Task"), predicate: shouldPrintDebugInfo);
         
         try {
+            state.setStage(Stage.EXECUTION);
+            
             await taskDelegate(); // Execute the task
+        } finally {
+            state.setStage(Stage.FINISH);
             
             Plugin.logIfDebugging(source => source.LogInfo("Task Has been finished"), predicate: shouldPrintDebugInfo);
-        } finally {
+            
             semaphore.Release(); // Release the permit
             
             Plugin.logIfDebugging(source => source.LogInfo("Permit has been released"), predicate: shouldPrintDebugInfo);
         }
     }
 
-    public static async Task<TResult> executeAsync<TResult>(SemaphoreSlim semaphore, Func<Task<TResult>> taskDelegate) {
+    private async Task<TResult> executeAsync<TResult>(SemaphoreIdentifier id, Guid guid, SemaphoreSlim semaphore, Func<Task<TResult>> taskDelegate) {
         Plugin.logIfDebugging(source => source.LogInfo("Going to check flag barrier"), predicate: shouldPrintDebugInfo);
+        
+        var state = getOrCreateState(id, guid);
+        
+        state.setStage(Stage.WAITING);
         
         await semaphore.WaitAsync(); // Acquire a permit
 
         Plugin.logIfDebugging(source => source.LogInfo("Starting Task"), predicate: shouldPrintDebugInfo);
         
         try {
+            state.setStage(Stage.EXECUTION);
+            
             return await taskDelegate(); // Execute the task
         } finally {
+            state.setStage(Stage.FINISH);
+
             Plugin.logIfDebugging(source => source.LogInfo("Task Has been finished"), predicate: shouldPrintDebugInfo);
             
             semaphore.Release(); // Release the permit
             
             Plugin.logIfDebugging(source => source.LogInfo("Permit has been released"), predicate: shouldPrintDebugInfo);
         }
+    }
+
+    private const int MAX_ALOTTED_TIME = (10 * 60);
+
+    private bool isPrunning = false;
+    private Stopwatch prunningWait = Stopwatch.StartNew();
+    
+    internal void pruneTasks() {
+        if (isPrunning) return;
+
+        if (prunningWait.ElapsedMilliseconds / 1000 < MAX_ALOTTED_TIME) return;
+        
+        prunningWait.Restart();
+        
+        Task.Run(() => {
+            isPrunning = true;
+            ID_TO_CURRENT_TASKS.forEach((id, tasks) => {
+                var statesToRemove = new HashSet<Guid>();
+                
+                tasks.forEach((guid, state) => {
+                    var data = state.getCurrentTotalMillisecounds();
+                    
+                    if ((state.currentStage == Stage.FINISH) || (data.stage != Stage.WAITING && (data.total / 1000) > MAX_ALOTTED_TIME)) {
+                        statesToRemove.Add(guid);
+                    }
+                });
+                
+                foreach (var guid in statesToRemove) {
+                    tasks.removeIfPresent(guid);
+                }
+                
+                Plugin.logIfDebugging(() => $"Pruned [{statesToRemove.Count}] tasks in the group [{id.identifier}]!");
+            });
+            isPrunning = false;
+        });
     }
 }
 
@@ -114,4 +203,72 @@ public class SemaphoreIdentifier {
     }
 
     public override int GetHashCode() => identifier.GetHashCode();
+}
+
+public class TaskState {
+    private readonly Guid guid;
+    private Task? task;
+
+    private Stopwatch stopwatch = Stopwatch.StartNew();
+
+    public Stage currentStage { get; internal set; } = Stage.INIT;
+
+    private ConcurrentDictionary<Stage, long> stages = new ();
+
+    internal TaskState(Guid guid) {
+        this.guid = guid;
+    }
+
+    internal void setStage(Stage stage) {
+        stopwatch.Stop();
+            
+        stages[currentStage] = stopwatch.ElapsedMilliseconds;
+
+        currentStage = stage;
+        
+        if (stage == Stage.FINISH) return;
+        
+        stopwatch.Restart();
+    }
+
+    internal void setTask(Task task) {
+        this.task = task;
+    }
+    
+    public (Stage stage, long total) getCurrentTotalMillisecounds() {
+        return new (currentStage, stopwatch.ElapsedMilliseconds);
+    }
+    
+    public long getTotalMillisecounds() {
+        var baseTotal = stages.Values.Sum();
+
+        if (currentStage != Stage.FINISH) {
+            baseTotal += stopwatch.ElapsedMilliseconds;
+        }
+        
+        return baseTotal;
+    }
+
+    public long getStateTotalMillisecounds(Stage stage) {
+        if (currentStage == stage) return stopwatch.ElapsedMilliseconds;
+        
+        return stages.GetValueOrDefault(stage, 0);
+    }
+
+    private bool endTask() {
+        if (task is null) return false;
+        
+        task.Dispose();
+        
+        stopwatch.Stop();
+        
+        return true;
+    }
+}
+
+public enum Stage {
+    INIT,
+    WAITING,
+    EXECUTION,
+    FINISH
 }

@@ -1,6 +1,8 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.Runtime.InteropServices;
 using io.wispforest.textureswapper.utils;
+using Unity.VisualScripting;
 using UnityEngine;
 using Random = UnityEngine.Random;
 
@@ -20,7 +22,19 @@ public class ActiveSwapperHolder : MonoEvent {
     private int _generalCutoffAmount = 1;
     
     public static ActiveSwapperHolder getOrCreate() {
-        return HolderUtils.getOrCreate<ActiveSwapperHolder>(ref holderObj, () => holderObj = null, "ActiveSwapperHolder");
+        var newHolder = holderObj is null;
+        
+        var holder = HolderUtils.getOrCreate<ActiveSwapperHolder>(ref holderObj, () => holderObj = null, "ActiveSwapperHolder");
+
+        if (newHolder && Plugin.ConfigAccess.prioritizeNewPicturesAcrossLevels()) {
+            if (Plugin.prevHolder is not null) {
+                holder.importFrom(Plugin.prevHolder);
+            }
+            
+            Plugin.prevHolder = holder;
+        }
+        
+        return holder;
     }
     
     internal void reset() {
@@ -33,6 +47,15 @@ public class ActiveSwapperHolder : MonoEvent {
         _generalCutoffAmount = 1;
         
         _activeSwapperCount.Clear();
+    }
+
+    internal void importFrom(ActiveSwapperHolder prevHolder) {
+        _activeSwapperCount.Clear();
+        
+        _activeSwapperCount.AddRange(prevHolder._activeSwapperCount);
+
+        _meshCutoffAmount = prevHolder._meshCutoffAmount;
+        _generalCutoffAmount = prevHolder._generalCutoffAmount;
     }
     
     private List<Identifier> getMaterials<S>() where S : SwapperBase {
@@ -78,7 +101,7 @@ public class ActiveSwapperHolder : MonoEvent {
         var materials = MediaSwapperStorage.getMaterials(types, id => {
             var activeHandlersAmt = _activeSwapperCount.GetValueOrDefault(id, 0);
 
-            if (Plugin.ConfigAccess.prioritizeNewPictures() && activeHandlersAmt > cutoffAmount) return false;
+            if (Plugin.ConfigAccess.prioritizeNewPictures() && activeHandlersAmt >= cutoffAmount) return false;
             
             var handler = MediaSwapperStorage.getHandler(id);
             

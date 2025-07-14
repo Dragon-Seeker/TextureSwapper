@@ -1,7 +1,12 @@
 using System;
 using System.Collections.Generic;
+using System.Security.Cryptography;
+using System.Text;
+using io.wispforest.textureswapper.endec.format.newtonsoft;
 using io.wispforest.textureswapper.utils;
 using io.wispforest.util;
+using Newtonsoft.Json;
+using JsonSerializer = io.wispforest.textureswapper.endec.format.newtonsoft.JsonSerializer;
 
 namespace io.wispforest.textureswapper.api.query;
 
@@ -86,7 +91,7 @@ public static class MediaQueryTypeRegistry {
     }
 }
 
-public class EmptyQueryResult : MediaQueryResult {
+public class EmptyQueryResult() : MediaQueryResult(Guid.Empty) {
     public static readonly Identifier NONE = Identifier.of("texture_swapper", "none");
     
     public static readonly StructEndec<EmptyQueryResult> ENDEC = EndecUtils.unit(new EmptyQueryResult());
@@ -103,10 +108,26 @@ public class EmptyQueryResult : MediaQueryResult {
 }
 
 public abstract class MediaQuery {
+
+    public Guid guid { get; } = Guid.NewGuid();
+
     public abstract Identifier getQueryTypeId();
+
+    public virtual MediaQuery createFrom() {
+        var data = MediaQueryTypeRegistry.QUERY_DATA.encodeFully(JsonSerializer.of, this);
+
+        var obj = MediaQueryTypeRegistry.QUERY_DATA.decodeFully(JsonDeserializer.of, data);
+
+        return obj;
+    }
 }
 
-public abstract class MediaQueryResult {
+public abstract class MediaQueryResult(Guid guid) {
+
+    public static readonly Guid NETWORKED_GUID = Guid.NewGuid();
+    
+    public Guid guid { get; set; } = guid;
+
     public abstract Identifier getQueryTypeId();
 }
 
