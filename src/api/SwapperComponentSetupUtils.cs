@@ -98,7 +98,7 @@ public class SwapperComponentSetupUtils {
             
             MediaSwapperStorage.getOrActWithHandler<MeshSwapper>(id, handler => {
                 if (isCensored(MediaSwapperStorage.getResult(id))) {
-                    handler = MediaSwapperStorage.getHandler<MeshSwapper>(MediaIdentifiers.CENSORED)!;
+                    handler = MediaSwapperStorage.getHandler<MeshSwapper>(UserSettingsAccess.getAlternativeCensorImage() ?? MediaIdentifiers.CENSORED)!;
                     
                     Plugin.logIfDebugging(source => source.LogInfo($"The given entry {id} has been censored due to being blacklisted!"));
                 }

@@ -119,6 +119,12 @@ public class MediaSwapperStorage {
         return new FullMediaData(id, getInfo(id) ?? MediaInfo.ofError(""), getResult(id) ?? new EmptyQueryResult());
     }
 
+    public static void removeMediaWithGuids(System.Collections.Generic.ISet<Guid> guids) {
+        foreach (var guid in guids) {
+            removeMediaWithGuid(guid);
+        }
+    }
+    
     public static void removeMediaWithGuid(Guid guid) {
         MainThreadHelper.runOnMainThread(() => {
             var removedIds = new HashSet<Identifier>();

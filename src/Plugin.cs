@@ -27,6 +27,7 @@ using io.wispforest.textureswapper.endec.format.newtonsoft;
 using io.wispforest.textureswapper.patches;
 using io.wispforest.textureswapper.utils;
 using Photon.Pun;
+using Photon.Realtime;
 using Sirenix.Utilities;
 using Unity.VisualScripting;
 using Chainloader = BepInEx.Bootstrap.Chainloader;
@@ -231,8 +232,9 @@ public class Plugin : BaseUnityPlugin {
       if (levelName != null) {
          var manager = RunManager.instance;
 
-         var isInvalidLevel = levelName.Equals(manager.levelMainMenu.name) || levelName.Equals(manager.levelSplashScreen.name) ||
-                              levelName.Equals(manager.levelTutorial.name);
+         var isInvalidLevel = levelName.Equals(manager.levelMainMenu.name) 
+                              || levelName.Equals(manager.levelSplashScreen.name)
+                              || levelName.Equals(manager.levelTutorial.name);
 
          if (isInvalidLevel) return;
       }
@@ -241,12 +243,11 @@ public class Plugin : BaseUnityPlugin {
 
       var typeToQueries = new Dictionary<Identifier, IList<MediaQuery>>();
 
-      ADDITIONAL_QUERY_LOOKUP?.Invoke((identifier, list) => { typeToQueries.computeIfAbsent(identifier, _ => new List<MediaQuery>()).AddRange(list); });
+      ADDITIONAL_QUERY_LOOKUP?.Invoke((identifier, list) => { typeToQueries.computeIfAbsent(identifier, _ => new List<MediaQuery>()).addAll(list); });
 
       var queryEntriesEndec = StructEndecBuilder.of(
-            MediaQueryTypeRegistry.QUERY_DATA.listOf().optionalFieldOf<QueryEntries>("query_entries", pair => pair.queries, () => new List<MediaQuery>()),
-            MediaQueryTypeRegistry.QUERY_DATA.listOf()
-                  .optionalFieldOf<QueryEntries>("dynamic_query_entries", pair => pair.queries, () => new List<MediaQuery>()),
+            MediaQueryTypeRegistry.GROUPED_QUERY_DATA.optionalFieldOf<QueryEntries>("query_entries", pair => pair.queries, () => new Dictionary<Identifier, IList<MediaQuery>>()),
+            MediaQueryTypeRegistry.GROUPED_QUERY_DATA.optionalFieldOf<QueryEntries>("dynamic_query_entries", pair => pair.queries, () => new Dictionary<Identifier, IList<MediaQuery>>()),
             (queries, dynamicQueries) => new QueryEntries(queries, dynamicQueries));
 
       Task.Run(() => {
@@ -267,14 +268,9 @@ public class Plugin : BaseUnityPlugin {
                   var queries = JsonUtils.parseFromFile(jsonFile, queryEntriesEndec);
 
                   if (queries is null) continue;
-
-                  foreach (var mediaQuery in queries.queries) {
-                     typeToQueries.computeIfAbsent(mediaQuery.getQueryTypeId(), _ => new List<MediaQuery>()).Add(mediaQuery);
-                  }
-
-                  foreach (var mediaQuery in queries.dynamicQueries) {
-                     dynamicTypeToQueries.computeIfAbsent(mediaQuery.getQueryTypeId(), _ => new List<MediaQuery>()).Add(mediaQuery);
-                  }
+                  
+                  typeToQueries.merge(queries.queries);
+                  dynamicTypeToQueries.merge(queries.dynamicQueries);
                }
                catch (Exception e) {
                   Logger.LogError($"Unable to parse the given file [{jsonFile}] as MediaQueries: {e}");
@@ -283,9 +279,10 @@ public class Plugin : BaseUnityPlugin {
          }
 
          //MultiThreadHelper.run(() => { while (true) { } });
-
-         runQueries(typeToQueries);
-         runQueries(dynamicTypeToQueries);
+         
+         runQueries("alternative_censor_images", UserSettingsAccess.getDefinedSettings().alternativeCensorImages);
+         runQueries("static_queries", typeToQueries);
+         runQueries("dynamic_queries", dynamicTypeToQueries);
       });
 
       Logger.LogInfo($"Queued up all loading for Texture Swapper!");
@@ -322,14 +319,12 @@ public class Plugin : BaseUnityPlugin {
                }).ToList();
             });
 
-            runQueries(newDynamicTypeToQueries);
+            runQueries("dynamic_queries", newDynamicTypeToQueries);
 
             mustLoadQueriesFirst = false;
          }
          else if (levelDifference >= maxLevelWait) {
-            foreach (var guid in oldDynamicQueries) {
-               MediaSwapperStorage.removeMediaWithGuid(guid);
-            }
+            MediaSwapperStorage.removeMediaWithGuids(oldDynamicQueries);
 
             oldDynamicQueries.Clear();
 
@@ -340,11 +335,11 @@ public class Plugin : BaseUnityPlugin {
       }
    }
 
-   private void runQueries(Dictionary<Identifier, IList<MediaQuery>> typeToQueries) {
+   internal static void runQueries(string entryName, IDictionary<Identifier, IList<MediaQuery>> typeToQueries) {
       if (typeToQueries.Count <= 0) return;
 
       Task.Run(() => {
-         Logger.LogInfo($"Running Queries for Texture Swapper");
+         Logger.LogInfo($"Running Media Queries in Texture Swapper [{entryName}]");
 
          foreach (var entry in typeToQueries) {
             // TODO: Change ability to regulate how many requests are possible for each type
@@ -369,7 +364,7 @@ public class Plugin : BaseUnityPlugin {
    }
 }
 
-public class QueryEntries(IList<MediaQuery> queries, IList<MediaQuery> dynamicQueries) {
-   public IList<MediaQuery> queries { get; } = queries;
-   public IList<MediaQuery> dynamicQueries { get; } = dynamicQueries;
+public class QueryEntries(IDictionary<Identifier, IList<MediaQuery>> queries, IDictionary<Identifier, IList<MediaQuery>> dynamicQueries) {
+   public IDictionary<Identifier, IList<MediaQuery>> queries { get; } = queries;
+   public IDictionary<Identifier, IList<MediaQuery>> dynamicQueries { get; } = dynamicQueries;
 }

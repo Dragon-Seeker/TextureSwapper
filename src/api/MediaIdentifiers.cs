@@ -42,7 +42,6 @@ public class MediaIdentifiers {
         
         LocalMediaQueryType.INSTANCE.executeQuery(query);
         
-        
         foreach (var id in DEFAULT_DATA_VARIANTS) {
             var handler = MediaSwapperStorage.getHandler(id);
 

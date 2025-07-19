@@ -1,6 +1,7 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.Runtime.InteropServices;
+using io.wispforest.textureswapper.api.query.impl;
 using io.wispforest.textureswapper.utils;
 using Unity.VisualScripting;
 using UnityEngine;
@@ -98,10 +99,19 @@ public class ActiveSwapperHolder : MonoEvent {
     private List<Identifier> getIdentifiers(int cutoffAmount, ref bool materialsIsEmpty, params MediaType[] types) {
         if (materialsIsEmpty) return [];
         
+        // TODO: REWRITE AS NOT VERY PERFORMANT I BELIEVE
         var materials = MediaSwapperStorage.getMaterials(types, id => {
             var activeHandlersAmt = _activeSwapperCount.GetValueOrDefault(id, 0);
 
-            if (Plugin.ConfigAccess.prioritizeNewPictures() && activeHandlersAmt >= cutoffAmount) return false;
+            if (Plugin.ConfigAccess.prioritizeNewPictures() && activeHandlersAmt >= cutoffAmount) {
+                return false;
+            }
+
+            var result = MediaSwapperStorage.getResult(id);
+
+            if (result is not null && UserSettingsAccess.isAlternativeCensorImage(result.guid)) {
+                return false;
+            }
             
             var handler = MediaSwapperStorage.getHandler(id);
             

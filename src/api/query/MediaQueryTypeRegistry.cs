@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Linq;
 using System.Security.Cryptography;
 using System.Text;
 using io.wispforest.textureswapper.endec.format.newtonsoft;
@@ -56,6 +57,20 @@ public static class MediaQueryTypeRegistry {
 
                 return TYPES[id].decodeQuery(ctx, deserializer, instance);
             });
+
+    public static readonly Endec<IList<MediaQuery>> QUERY_DATA_LIST = QUERY_DATA.listOf();
+
+    public static readonly Endec<IDictionary<Identifier, IList<MediaQuery>>> GROUPED_QUERY_DATA = QUERY_DATA_LIST.xmap(queries => {
+        IDictionary<Identifier, IList<MediaQuery>> typeToQueries = new Dictionary<Identifier, IList<MediaQuery>>();
+
+        foreach (var mediaQuery in queries) {
+            typeToQueries.computeIfAbsent(mediaQuery.getQueryTypeId(), _ => new List<MediaQuery>()).Add(mediaQuery);
+        }
+
+        return typeToQueries;
+    }, dictionary => {
+        return dictionary.Values.SelectMany(list => list).ToList();
+    });
 
     public static void register<T, D, R>(T paintingLookup) where T : MediaQueryType<D, R> where R : MediaQueryResult where D : MediaQuery {
         var identifier = paintingLookup.getLookupId();

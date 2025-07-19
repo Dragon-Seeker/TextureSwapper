@@ -1,11 +1,13 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.IO;
-using System.Text.Json.Nodes;
+using System.Linq;
 using io.wispforest.impl;
 using io.wispforest.textureswapper.endec.format.newtonsoft;
 using io.wispforest.textureswapper.utils;
 using Newtonsoft.Json.Linq;
+using Sirenix.Utilities;
+using Unity.VisualScripting;
 
 namespace io.wispforest.textureswapper.api.query.impl;
 
@@ -83,9 +85,15 @@ public class UserSettingsAccess {
 
     private static void reloadData() {
         if (!isDirty) return;
+
+        var prevSettings = userSettings;
         
         userData = loadUserSettingsData();
         userSettings = userData is not null ? JsonUtils.parseFromString(userData, Settings.ENDEC) : Settings.createEmpty();
+
+        rerunAlternativeCensorImages = prevSettings.alternativeCensorImages.Equals(userSettings.alternativeCensorImages);
+        
+        setAltenativeCensorImageGroups();
             
         isDirty = false;
     }
@@ -114,23 +122,66 @@ public class UserSettingsAccess {
 
         return null;
     }
+
+    private static readonly System.Collections.Generic.ISet<Guid> altenativeCensorImageGroups = new HashSet<Guid>();
+    
+    public static bool isAlternativeCensorImage(Guid guid) {
+        return altenativeCensorImageGroups.Contains(guid);
+    }
+
+    private static bool rerunAlternativeCensorImages = false;
+
+    private static void setAltenativeCensorImageGroups() {
+        altenativeCensorImageGroups.Clear();
+        altenativeCensorImageGroups.AddRange(
+                LinqUtility.ToHashSet(
+                        getDefinedSettings()
+                                .alternativeCensorImages
+                                .Values
+                                .SelectMany(list => list.Select(query => query.guid))
+                )
+        );
+
+        if (rerunAlternativeCensorImages) {
+            Plugin.runQueries("alternative_censor_images", userSettings.alternativeCensorImages);
+            
+            rerunAlternativeCensorImages = false;
+        }
+    }
+
+    public static Identifier? getAlternativeCensorImage() {
+        if (altenativeCensorImageGroups.Count <= 0) return null;
+        
+        var entries = MediaSwapperStorage.getMaterials([MediaType.IMAGE, MediaType.VIDEO], (id) => {
+            var result = MediaSwapperStorage.getResult(id);
+            return result is not null && altenativeCensorImageGroups.Contains(result!.guid);
+        });
+
+        if (entries.Count <= 0) return null;
+
+        var random = new Random();
+
+        return entries[random.Next(entries.Count)];
+    }
 }
 
 public record Settings {
-    internal static Settings createEmpty() => new (false, true, new BlackListData([]), new WhiteListData([]), new Dictionary<string, ApplicationCredentials>());
+    internal static Settings createEmpty() => new (false, true, new BlackListData([]), new WhiteListData([]), new Dictionary<string, ApplicationCredentials>(), new Dictionary<Identifier, IList<MediaQuery>>());
     
     public bool debugLogging { get; internal set; }
     public bool restrictiveQueries { get; internal set; }
     public BlackListData blackListData { get; internal set; }
     public WhiteListData whiteListData { get; internal set; }
     public IDictionary<string, ApplicationCredentials> applicationCredentials { get; internal set; }
-    
-    private Settings(bool debugLogging, bool restrictiveQueries, BlackListData blackListData, WhiteListData whiteListData, IDictionary<string, ApplicationCredentials> applicationCredentials) {
+    public IDictionary<Identifier, IList<MediaQuery>> alternativeCensorImages { get; internal set; }
+
+    private Settings(bool debugLogging, bool restrictiveQueries, BlackListData blackListData, WhiteListData whiteListData, IDictionary<string, ApplicationCredentials> applicationCredentials, IDictionary<Identifier, IList<MediaQuery>> alternativeCensorImages) {
         this.debugLogging = debugLogging;
         this.restrictiveQueries = restrictiveQueries;
         this.blackListData = blackListData;
         this.whiteListData = whiteListData;
         this.applicationCredentials = applicationCredentials;
+        this.alternativeCensorImages = alternativeCensorImages;
     }
 
     public static readonly StructEndec<Settings> ENDEC = StructEndecBuilder.of(
@@ -139,7 +190,8 @@ public record Settings {
         BlackListData.ENDEC.fieldOf<Settings>("blacklist", s => s.blackListData),
         WhiteListData.ENDEC.fieldOf<Settings>("whitelist", s => s.whiteListData),
         ApplicationCredentials.ENDEC.mapOf().fieldOf<Settings>("account_credentials", s => s.applicationCredentials),
-        (debugLogging, restrictiveQueries, blackListData, whiteListData, applicationCredentials) => new Settings(debugLogging, restrictiveQueries, blackListData, whiteListData, applicationCredentials)
+        MediaQueryTypeRegistry.GROUPED_QUERY_DATA.optionalFieldOf<Settings>("query_entries", s => s.alternativeCensorImages, () => new Dictionary<Identifier, IList<MediaQuery>>()),
+        (debugLogging, restrictiveQueries, blackListData, whiteListData, applicationCredentials, alternativeCensorImages) => new Settings(debugLogging, restrictiveQueries, blackListData, whiteListData, applicationCredentials, alternativeCensorImages)
     );
 }
 

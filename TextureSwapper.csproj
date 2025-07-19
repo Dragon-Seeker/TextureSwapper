@@ -3,7 +3,7 @@
     <TargetFramework>netstandard2.1</TargetFramework>
     <AssemblyName>TextureSwapper</AssemblyName>
     <Product>Texture Swapper</Product>
-    <Version>1.1.7</Version>
+    <Version>1.1.8</Version>
     <Nullable>enable</Nullable>
     <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
     <LangVersion>12</LangVersion>

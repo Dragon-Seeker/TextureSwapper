@@ -1,14 +1,20 @@
 ﻿using System;
+using System.Collections;
 using System.Collections.Generic;
 using System.Linq;
 using System.Net.Http;
 using System.Net.Http.Headers;
+using Sirenix.Utilities;
 
 namespace io.wispforest.textureswapper.utils;
 
 public class Extensions { }
 
 public static class DictionaryExtensions {
+    public static V computeIfAbsent<K,V>(this IDictionary<K, V> dict, K k, Func<V> func) {
+        return computeIfAbsent(dict, k, _ => func());
+    }
+    
     public static V computeIfAbsent<K,V>(this IDictionary<K, V> dict, K k, Func<K, V> func) {
         if (!dict.ContainsKey(k)) dict[k] = func(k);
         
@@ -33,6 +39,31 @@ public static class DictionaryExtensions {
         }
     }
 
+    public static void merge<K, V>(this IDictionary<K, IList<V>> dict, IDictionary<K, IList<V>> otherDict) {
+        merge<K, IList<V>, V>(dict, otherDict);
+    }
+
+    public static void merge<K, C1, V>(this IDictionary<K, C1> dict, IDictionary<K, C1> otherDict) where C1 : ICollection<V>  {
+        otherDict.forEach((k, vs) => {
+            if (dict.ContainsKey(k)) {
+                dict[k].addAll(vs);
+            } else {
+                dict[k] = vs;
+            }
+        });
+    }
+}
+
+public static class ICollectionExtensions {
+    public static void addAll<T>(this ICollection<T> collection, IEnumerable<T> values) {
+        if (collection is List<T> list) {
+            if (values is List<T> valueList) {
+                list.AddRange(valueList);
+            }
+        } 
+        
+        foreach (var obj in collection) collection.Add(obj);
+    }
 }
 
 public static class IListExtensions {
