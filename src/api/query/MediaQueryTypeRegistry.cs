@@ -25,7 +25,7 @@ public static class MediaQueryTypeRegistry {
                     throw new Exception($"Unable to encode the given Lookup Data as the given Lookup Id was not found: {id}");
                 }
             
-                TYPES[id].encodeResult(ctx, serializer, instance, value);
+                getTypeDyn(id).encodeResult(ctx, serializer, instance, value);
             }, (ctx, deserializer, instance) => {
                 var id = instance.field("id", ctx, Identifier.ENDEC);
                 if (id.Equals(EmptyQueryResult.NONE)) return new EmptyQueryResult();
@@ -34,7 +34,7 @@ public static class MediaQueryTypeRegistry {
                     throw new Exception($"Unable to decode the given Lookup Data as the given Lookup Id was not found: {id}");
                 }
 
-                return TYPES[id].decodeResult(ctx, deserializer, instance);
+                return getTypeDyn(id).decodeResult(ctx, deserializer, instance);
             });
     
     public static readonly StructEndec<MediaQuery> QUERY_DATA = StructEndecUtils.of<MediaQuery>(
@@ -47,7 +47,7 @@ public static class MediaQueryTypeRegistry {
                     throw new Exception($"Unable to encode the given Lookup Data as the given Lookup Id was not found: {id}");
                 }
             
-                TYPES[id].encodeQuery(ctx, serializer, instance, value);
+                getTypeDyn(id).encodeQuery(ctx, serializer, instance, value);
             }, (ctx, deserializer, instance) => {
                 var id = instance.field("id", ctx, Identifier.ENDEC);
             
@@ -55,7 +55,7 @@ public static class MediaQueryTypeRegistry {
                     throw new Exception($"Unable to decode the given Lookup Data as the given Lookup Id was not found: {id}");
                 }
 
-                return TYPES[id].decodeQuery(ctx, deserializer, instance);
+                return getTypeDyn(id).decodeQuery(ctx, deserializer, instance);
             });
 
     public static readonly Endec<IList<MediaQuery>> QUERY_DATA_LIST = QUERY_DATA.listOf();
@@ -84,7 +84,7 @@ public static class MediaQueryTypeRegistry {
         var id = query.getQueryTypeId();
         if (!TYPES.ContainsKey(id)) return false;
 
-        var type = TYPES[id];
+        var type = getTypeDyn(id);
         if (!type.canHandleQueryData(query)) return false;
 
         try {
@@ -101,8 +101,12 @@ public static class MediaQueryTypeRegistry {
 
     }
 
-    public static T? getType<T, D, R>(Identifier identifier) where T : MediaQueryType<D, R> where R : MediaQueryResult where D : MediaQuery {
-        return identifier.Equals(EmptyQueryResult.NONE) ? null : TYPES[identifier];
+    public static dynamic getTypeDyn(Identifier identifier) {
+        return TYPES[identifier];
+    }
+    
+    public static T? getType<T, Q, R>(Identifier identifier) where T : MediaQueryType<Q, R> where R : MediaQueryResult where Q : MediaQuery {
+        return identifier.Equals(EmptyQueryResult.NONE) ? null : TYPES[identifier] as T;
     }
 }
 
