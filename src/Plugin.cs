@@ -290,7 +290,7 @@ public class Plugin : BaseUnityPlugin {
    }
 
    private int pastLevelsCompleted = 0;
-   private System.Collections.Generic.ISet<Guid> oldDynamicQueries = new HashSet<Guid>();
+   private ISet<Guid> oldDynamicQueries = new HashSet<Guid>();
    private bool mustLoadQueriesFirst = true;
 
    private void handleDynamicQueries(int levelsCompleted, string level) {

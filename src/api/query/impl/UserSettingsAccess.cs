@@ -91,8 +91,9 @@ public class UserSettingsAccess {
         userData = loadUserSettingsData();
         userSettings = userData is not null ? JsonUtils.parseFromString(userData, Settings.ENDEC) : Settings.createEmpty();
 
-        rerunAlternativeCensorImages = prevSettings.alternativeCensorImages.Equals(userSettings.alternativeCensorImages);
-        
+        if (prevSettings is not null) {
+            rerunAlternativeCensorImages = prevSettings.alternativeCensorImages.Equals(userSettings.alternativeCensorImages);
+        }
         setAltenativeCensorImageGroups();
             
         isDirty = false;
@@ -123,7 +124,7 @@ public class UserSettingsAccess {
         return null;
     }
 
-    private static readonly System.Collections.Generic.ISet<Guid> altenativeCensorImageGroups = new HashSet<Guid>();
+    private static System.Collections.Generic.ISet<Guid> altenativeCensorImageGroups = new HashSet<Guid>();
     
     public static bool isAlternativeCensorImage(Guid guid) {
         return altenativeCensorImageGroups.Contains(guid);
@@ -132,14 +133,11 @@ public class UserSettingsAccess {
     private static bool rerunAlternativeCensorImages = false;
 
     private static void setAltenativeCensorImageGroups() {
-        altenativeCensorImageGroups.Clear();
-        altenativeCensorImageGroups.AddRange(
-                LinqUtility.ToHashSet(
-                        getDefinedSettings()
-                                .alternativeCensorImages
-                                .Values
-                                .SelectMany(list => list.Select(query => query.guid))
-                )
+        altenativeCensorImageGroups = LinqUtility.ToHashSet(
+                userSettings
+                        .alternativeCensorImages
+                        .Values
+                        .SelectMany(list => list.Select(query => query.guid))
         );
 
         if (rerunAlternativeCensorImages) {
