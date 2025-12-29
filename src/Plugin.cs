@@ -144,17 +144,16 @@ public class Plugin : BaseUnityPlugin {
       LocalFiles.init();
 
       MediaIdentifiers.initErrorImages(pluginFolder);
-
-      // Similar patch but adding compatibility to RepoLib to hook into after they init there prefab pool
-      _harmony.PatchAll(Chainloader.PluginInfos.ContainsKey("REPOLib") ? typeof(RepoLibNetworkPrefabsPatch) : typeof(RunManagerAwakePatch));
+      
       _harmony.PatchAll(typeof(SemiFuncPatch));
       _harmony.PatchAll(typeof(RunManagerPatch));
+      _harmony.PatchAll(typeof(DefaultPoolPatch));
 
       // Just incase to make sure Photon Endec compat is loaded
       PhotonEndecAddon.init();
 
       // Hook into Wrapper Prefab pool so we can manipulate game objects after instantiation
-      WrapperPrefabPool.onPrefabInstantiation += (gameObject, _, _, _) => SwapperComponentSetupUtils.commonSide(gameObject);
+      PrefabInstantiationEvent.onPrefabInstantiation += (gameObject, _, _, _) => SwapperComponentSetupUtils.commonSide(gameObject);
 
       LevelEvents.ON_CHANGE += this.handleDynamicQueries;
 
@@ -215,7 +214,7 @@ public class Plugin : BaseUnityPlugin {
       directoriesToBeLoaded = directories;
 
       hasLoadedQueries = false;
-
+      
       // --
 
       Logger.LogInfo($"Plugin {SwapperPluginInfo.PLUGIN_NAME} started Successfully!");

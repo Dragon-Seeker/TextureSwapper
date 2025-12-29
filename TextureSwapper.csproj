@@ -32,8 +32,8 @@
     <PackageReference Include="MonoMod" Version="22.7.31.1" />
     <PackageReference Include="HarmonyX" Version="2.10.2" />
     
-    <PackageReference Include="Zehs.REPOLib" Version="2.1.0"  />
-    <PackageReference Include="Newtonsoft.Json" Version="13.0.3" ExcludeAssets="all" />
+    <PackageReference Include="Zehs.REPOLib" Version="3.0.3"  />
+    <PackageReference Include="Newtonsoft.Json" Version="13.0.4" ExcludeAssets="all" />
     
     <Reference Include="Assembly-CSharp">
       <HintPath>$(GameRoot)\REPO_Data\Managed\Assembly-CSharp.dll</HintPath>
