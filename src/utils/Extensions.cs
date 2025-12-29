@@ -4,7 +4,10 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Net.Http;
 using System.Net.Http.Headers;
+using System.Text;
 using Sirenix.Utilities;
+using Unity.VisualScripting;
+using UnityEngine;
 
 namespace io.wispforest.textureswapper.utils;
 
@@ -60,9 +63,9 @@ public static class ICollectionExtensions {
             if (values is List<T> valueList) {
                 list.AddRange(valueList);
             }
-        } 
-        
-        foreach (var obj in collection) collection.Add(obj);
+        }
+
+        foreach (var obj in values) collection.Add(obj);
     }
 }
 
@@ -111,5 +114,80 @@ public static class PairedTupleExtensions{
 public static class EnumerableExtensions {
     public static IEnumerable<TSource> selectNonNull<TSource>(this IEnumerable<TSource?> source) {
         return source.Where(source1 => source1 is not null).Select(source1 => source1!);
+    }
+
+    public static bool isNotEmpty<T>(this IEnumerable<T> source) {
+        return !source.isEmpty();
+    }
+
+    public static bool isEmpty<T>(this IEnumerable<T> source) {
+        if (source is ICollection<T> collection) return collection.Count == 0;
+
+        return (source as IEnumerable).isEmpty();
+    }
+
+    public static bool isNotEmpty(this IEnumerable source) {
+        return !source.isEmpty();
+    }
+
+    public static bool isEmpty(this IEnumerable source) {
+        if (source is ICollection collection) return collection.Count == 0;
+        
+        var enumerator = source.GetEnumerator();
+
+        var value = enumerator.MoveNext();
+
+        if (enumerator is IDisposable disposable) disposable.Dispose();
+
+        return value;
+    }
+}
+
+public static class TransformExtensions {
+    public static IEnumerable<Transform> children(this Transform transform) {
+        return transform.Cast<Transform>();
+    }
+
+    public static IEnumerable<GameObject> childrenObjects(this Transform transform) {
+        return transform.Cast<Transform>().Select(t => t.gameObject);
+    }
+
+    public static void unpackChildren(this GameObject gameObject, Action<GameObject> entryHandler, Action<Action> nestScope) {
+        entryHandler(gameObject);
+
+        foreach (var childObj in gameObject.transform.childrenObjects()) nestScope(() => childObj.unpackChildren(entryHandler, nestScope));
+    }
+
+
+    public static void unpackChildren(this GameObject gameObject, Action<GameObject> entryHandler) {
+        entryHandler(gameObject);
+        
+        foreach(var childObj in gameObject.transform.childrenObjects()) childObj.unpackChildren(entryHandler);
+    }
+    
+    public static IEnumerable<GameObject> getAllChildrenObjects(this GameObject gameObject) {
+        var children = new List<GameObject>();
+        
+        gameObject.unpackChildren(o => children.Add(o));
+        
+        return children;
+    }
+
+    public static string dumpNameTree(this GameObject gameObject, string indent = "  ", string indentSuffix = "") {
+        var builder = new StringBuilder();
+        
+        var indentLevel = new Stack<string>([indentSuffix]);
+        
+        gameObject.unpackChildren((o) => builder.Append(indentLevel.Peek()).Append(o.name).AppendLine(), 
+            action => { 
+                indentLevel.Push(indent + indentLevel.Peek());
+            
+                action();
+
+                indentLevel.Pop();
+            }
+        );
+
+        return builder.ToString();
     }
 }

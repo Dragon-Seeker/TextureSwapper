@@ -24,6 +24,9 @@ public class ConfigAccess : ConfigFile, IDictionary<ConfigDefinition, ConfigEntr
     private readonly ConfigEntry<String> PICTURE_TEXTURE_TARGETS;
     private readonly ConfigEntry<bool> RESTRICTED_QUERIES;
     
+    private readonly ConfigEntry<float> RAYCAST_RANGE;
+    private readonly ConfigEntry<int> RAYCAST_UNPACKER_LEVEL;
+    
     private readonly ConfigEntry<int> DYNAMIC_QUERIES_LEVEL_COUNT;
     
     private readonly ConfigEntry<bool> ONLY_FIRST_ANIMATION_FRAME;
@@ -54,10 +57,12 @@ public class ConfigAccess : ConfigFile, IDictionary<ConfigDefinition, ConfigEntr
                 .Bind(out CLIENT_SIDE_ONLY, "ClientSide", false, "Enables the ability to use a client based random value that pseudo syncs if the photos are the same on all clients")
                 .Bind(out DEBUG_LOGGING, "DebugLogging", false, "Enables some useful debug logging to check and or validate if things are going properly")
                 .Bind(out PICTURE_TEXTURE_TARGETS, "TextureTargets", DEFAULT_TEXTURE_TARGETS, "All texture targets to replace with custom images, Seperated by commas (,) without any spaces")
-                .Bind(out RESTRICTED_QUERIES, "RestrictiveQueries", true, "Will attempt to restrict the queries allowed as an attempt to be safer with image content that is requested")
+                .Bind(out RESTRICTED_QUERIES, "RestrictiveQueries", false, "Will attempt to restrict the queries allowed as an attempt to be safer with image content that is requested")
                 .Bind(out BLACKLIST_TAGS, "DisallowedTags", "", "A list of tags that are disallowed from being shown, Seperated by commas (,) without any spaces")
                 .Bind(out ENABLE_GLOBAL_BLACKLIST, "EnableGlobalBlacklist", false, "Enables the Global Blacklist for generally unsafe queries, disable at your own risk when allowing Restrictive Queries")
-                .Bind(out ALLOWED_TAGS, "AllowedTags", "", "A list of tags that are allowed to be shown, Seperated by commas (,) without any spaces");
+                .Bind(out ALLOWED_TAGS, "AllowedTags", "", "A list of tags that are allowed to be shown, Seperated by commas (,) without any spaces")                
+                .Bind(out RAYCAST_RANGE, "RaycastRange", 100f, "Adjust the range used when sing the RayCast debug keybind")
+                .Bind(out RAYCAST_UNPACKER_LEVEL, "RaycastUnpackerLevel", 1, "Adjust the unpacking amount used when sing the RayCast debug keybind");
 
         //--
         
@@ -132,6 +137,8 @@ public class ConfigAccess : ConfigFile, IDictionary<ConfigDefinition, ConfigEntr
     public List<string> pictureTextureTargets { get; private set; }
     public bool restrictiveQueries() => RESTRICTED_QUERIES.Value;
     public bool enableGlobalBlacklist() => ENABLE_GLOBAL_BLACKLIST.Value;
+    public float raycastRange() => RAYCAST_RANGE.Value;
+    public int raycastUnpackerLevel() => RAYCAST_UNPACKER_LEVEL.Value;
 
     public int dynamicQueriesLevelCount() => DYNAMIC_QUERIES_LEVEL_COUNT.Value;
     public bool onlyFirstAnimationFrame() => ONLY_FIRST_ANIMATION_FRAME.Value;

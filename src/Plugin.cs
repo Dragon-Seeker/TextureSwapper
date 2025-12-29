@@ -1,6 +1,5 @@
 ﻿using System;
 using System.Collections.Generic;
-using System.Collections.ObjectModel;
 using System.IO;
 using System.Reflection;
 using BepInEx;
@@ -8,17 +7,13 @@ using BepInEx.Logging;
 using HarmonyLib;
 using UnityEngine;
 using System.Linq;
-using System.Net.Http;
-using System.Text.RegularExpressions;
 using System.Threading;
 using System.Threading.Tasks;
+using BepInEx.Bootstrap;
 using FFMpegCore;
 using FFMpegCore.Enums;
 using ImageMagick;
-using io.wispforest.format.binary;
 using io.wispforest.impl;
-using JetBrains.Annotations;
-using MonoMod.Utils;
 using io.wispforest.textureswapper.api;
 using io.wispforest.textureswapper.api.components.holders;
 using io.wispforest.textureswapper.api.query;
@@ -26,12 +21,8 @@ using io.wispforest.textureswapper.api.query.impl;
 using io.wispforest.textureswapper.endec.format.newtonsoft;
 using io.wispforest.textureswapper.patches;
 using io.wispforest.textureswapper.utils;
-using Photon.Pun;
-using Photon.Realtime;
-using Sirenix.Utilities;
-using Unity.VisualScripting;
-using Chainloader = BepInEx.Bootstrap.Chainloader;
-using Object = UnityEngine.Object;
+using KeybindLib.Classes;
+using REPOLib.Modules;
 
 namespace io.wispforest.textureswapper;
 
@@ -157,6 +148,10 @@ public class Plugin : BaseUnityPlugin {
 
       LevelEvents.ON_CHANGE += this.handleDynamicQueries;
 
+      /*if (Chainloader.PluginInfos.ContainsKey("bulletbot.keybindlib"))*/ _harmony.PatchAll(typeof(KeybindsPatch));
+      
+      dumpBind = Keybinds.Bind("Texture Swapper", "Dump Target Object", "<Keyboard>/o");
+      
       Logger.LogInfo($"Plugin {SwapperPluginInfo.PLUGIN_NAME} loaded Successfully!");
    }
 
@@ -217,7 +212,72 @@ public class Plugin : BaseUnityPlugin {
       
       // --
 
+      ArgKey<float> rangeKey = new ArgKey<float>("range", s => {
+         return float.TryParse(s, out var result) 
+               ? (msg: null, t: result) 
+               : (msg: $"Unable to parse value '{s}', using default value.", t: 50f);
+      }, 50f);
+
+      ArgKey<int> unpackAmountKey = new ArgKey<int>("unpack", s => {
+         return int.TryParse(s, out var result) 
+               ? (msg: null, t: result) 
+               : (msg: $"Unable to parse value '{s}', using default value.", t: 1);
+      }, 1);
+
+      Action? prevHitColorReset = null;
+      Action? prevParentColorReset = null;
+      
+      Commands.RegisterCommand(new ArgumentChatCommand(Logger, "rayCastToObj", "Attempts to raycast an object in the scene and dump its structure",
+            [rangeKey, unpackAmountKey], (b, arguments) => {
+               dumpMeshRayCast(arguments.get(rangeKey), arguments.get(unpackAmountKey));
+            }));
+
       Logger.LogInfo($"Plugin {SwapperPluginInfo.PLUGIN_NAME} started Successfully!");
+   }
+
+   private Keybind? dumpBind = null;
+
+   private MeshRayCaster? meshRayCaster;
+   
+   private void dumpMeshRayCast(float range, int unpackAmount) {
+      if(meshRayCaster == null) meshRayCaster = new MeshRayCaster(Logger, ConfigAccess.debugLogging);
+      
+      logIfDebugging(source => source.LogInfo($"RayCasting with at range '{range}'."));
+
+      var target = meshRayCaster.raycast(range);
+      
+      if (target == null) {
+         Logger.LogInfo("No hit found!");
+         return;
+      }
+
+      var component = target!;
+
+      if (component == null) {
+         Logger.LogInfo("Hit detected but component was null?!");
+         return;
+      } 
+               
+      var transform = component.transform;
+               
+      // 3. Act on the object hit
+      Logger.LogInfo("Hit: " + transform.gameObject.name);
+      Logger.LogInfo($"Unpacking '{unpackAmount}' levels deep.");
+                  
+      int level = 1;
+
+      while (level < unpackAmount) {
+         var parentTransform = transform.parent;
+
+         if (parentTransform == null) break;
+               
+         transform = parentTransform;
+               
+         level++;
+      }
+
+      Logger.LogInfo($"Dumping Object tree: \n{transform.gameObject.dumpNameTree(indentSuffix: "  -> ")}");
+
    }
 
    private bool hasLoadedQueries = false;
@@ -360,6 +420,10 @@ public class Plugin : BaseUnityPlugin {
       MainThreadHelper.handleActionsOnMainThread();
       ImageSequenceHolder.actIfPresent(holder => { holder.checkIfMaterialsLoaded(); });
       MultiThreadHelper.INSTANCE.pruneTasks();
+
+      if (dumpBind != null && SemiFunc.InputDown(dumpBind.inputKey)) {
+         dumpMeshRayCast(ConfigAccess.raycastRange(), ConfigAccess.raycastUnpackerLevel());
+      }
    }
 }
 
