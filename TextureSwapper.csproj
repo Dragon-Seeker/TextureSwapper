@@ -3,7 +3,7 @@
     <TargetFramework>netstandard2.1</TargetFramework>
     <AssemblyName>TextureSwapper</AssemblyName>
     <Product>Texture Swapper</Product>
-    <Version>1.1.8</Version>
+    <Version>1.1.9</Version>
     <Nullable>enable</Nullable>
     <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
     <LangVersion>12</LangVersion>
@@ -34,6 +34,10 @@
     
     <PackageReference Include="Zehs.REPOLib" Version="3.0.3"  />
     <PackageReference Include="Newtonsoft.Json" Version="13.0.4" ExcludeAssets="all" />
+
+    <Reference Include="KeybindLib">
+      <HintPath>$(LibDir)\BULLETBOT-KeybindLib-1.0.3\KeybindLib.dll</HintPath>
+    </Reference>
     
     <Reference Include="Assembly-CSharp">
       <HintPath>$(GameRoot)\REPO_Data\Managed\Assembly-CSharp.dll</HintPath>
