@@ -1,0 +1,9 @@
+{
+  "name": "MediaHelper",
+  "version_number": "$(version)",
+  "website_url": "https://github.com/Dragon-Seeker/TextureSwapper",
+  "description": "This mod acts as a way to have media utilities for the mod TextureSwapper",
+  "dependencies": [
+    "BepInEx-BepInExPack-5.4.2100"
+  ]
+}

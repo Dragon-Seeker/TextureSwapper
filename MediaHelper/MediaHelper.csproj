@@ -1,0 +1,98 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <TargetFramework>netstandard2.1</TargetFramework>
+    <AssemblyName>MediaHelper</AssemblyName>
+    <Product>Media Helper</Product>
+    <Version>1.0.0</Version>
+    
+    
+    <Nullable>enable</Nullable>
+    <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
+    <LangVersion>12</LangVersion>
+    <RestoreAdditionalProjectSources>
+      https://api.nuget.org/v3/index.json;
+      https://nuget.bepinex.dev/v3/index.json;
+      https://nuget.samboy.dev/v3/index.json;
+      https://nuget.windows10ce.com/nuget/v3/index.json
+    </RestoreAdditionalProjectSources>
+    
+    <RootNamespace>io.wispforest</RootNamespace>
+
+    <GameRoot>E:\Programs\Steam\steamapps\common\REPO</GameRoot>
+    <ManagedRoot>$(GameRoot)\REPO_Data\Managed</ManagedRoot>
+    
+    
+    <PublishOutputDir>$(MSBuildThisFileDirectory)PublishOutput</PublishOutputDir>
+    <AssetsDir>$(MSBuildThisFileDirectory)assets</AssetsDir>
+    <LibDir>.\libs</LibDir>
+    
+    <NetMagickVersion>14.10.1</NetMagickVersion>
+    <NetMagickType>Magick.NET-Q8-x64</NetMagickType>
+
+    <CopyLocalLockFileAssemblies>true</CopyLocalLockFileAssemblies>
+  </PropertyGroup>
+
+  <ItemGroup>
+
+    <PackageReference Include="BepInEx.Analyzers" Version="1.*" />
+    <PackageReference Include="BepInEx.Core" Version="5.*" />
+    <Reference Include="UnityEngine.CoreModule"> <HintPath>$(ManagedRoot)\UnityEngine.CoreModule.dll</HintPath> </Reference>
+    <Reference Include="UnityEngine"> <HintPath>$(ManagedRoot)\UnityEngine.dll</HintPath> </Reference>
+    <PackageReference Include="BepInEx.PluginInfoProps" Version="2.*" />
+    <PackageReference Include="MonoMod" Version="22.7.31.1" />
+    <PackageReference Include="HarmonyX" Version="2.10.2" />
+    
+    <!--  FFMPEG CORE AND ITS REQURED FILES  -->
+
+    <PackageReference Include="FFMpegCore" Version="5.2.0"/>
+    <PackageReference Include="Instances" Version="3.0.1"/>
+    <PackageReference Include="Microsoft.Bcl.AsyncInterfaces" Version="9.0.2"/>
+    <PackageReference Include="System.Buffers" Version="4.5.1"/>
+    <PackageReference Include="System.IO.Pipelines" Version="9.0.2"/>
+    <PackageReference Include="System.Memory" Version="4.5.5"/>
+    <PackageReference Include="System.Numerics.Vectors" Version="4.4.0"/>
+    <PackageReference Include="System.Runtime.CompilerServices.Unsafe" Version="6.0.0"/>
+    <PackageReference Include="System.Text.Encodings.Web" Version="9.0.2"/>
+    <PackageReference Include="System.Text.Json" Version="9.0.2"/>
+    <PackageReference Include="System.Threading.Tasks.Extensions" Version="4.5.4"/>
+
+    <!--  MAGICK AND ITS STUFF  -->
+
+    <PackageReference Include="$(NetMagickType)" Version="$(NetMagickVersion)" />
+    <Content Include="$(NuGetPackageRoot)\$(NetMagickType.ToLower())\$(NetMagickVersion)\runtimes\win-x64\native\Magick.Native-Q8-x64.dll">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+      <Link>Magick.Native-Q8-x64.dll</Link>
+    </Content>
+    <PackageReference Include="Magick.NET.Core" Version="$(NetMagickVersion)" />
+
+    <!--  NAudio AND REQUIRED STUFF  -->
+
+    <PackageReference Include="NAudio" Version="2.0.1" />
+    <PackageReference Include="NAudio.Asio" Version="2.2.1" />
+    <PackageReference Include="NAudio.Core" Version="2.2.1" />
+    <PackageReference Include="NAudio.Midi" Version="2.2.1" />
+    <PackageReference Include="NAudio.Wasapi" Version="2.2.1" />
+    <PackageReference Include="NAudio.WinForms" Version="2.2.1" />
+    <PackageReference Include="NAudio.WinMM" Version="2.2.1" />
+    <PackageReference Include="System.Security.AccessControl" Version="6.0.0" />
+    <PackageReference Include="System.Security.Principal.Windows" Version="5.0.0" />
+
+  </ItemGroup>
+
+  <ItemGroup Condition="'$(TargetFramework.TrimEnd(`0123456789`))' == 'net'">
+    <PackageReference Include="Microsoft.NETFramework.ReferenceAssemblies" Version="1.0.2" PrivateAssets="all" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <Folder Include="PublishOutput\" />
+  </ItemGroup>
+
+  <Target Name="RunCompressScript" AfterTargets="Build">
+    <PropertyGroup>
+      <ProjectDir>$(MSBuildThisFileDirectory)\</ProjectDir>
+      <RealTargetDir>$(TargetDir)\</RealTargetDir>
+    </PropertyGroup>
+    <Exec Command="powershell -File &quot;$(MSBuildProjectDirectory)\PublishTask.ps1&quot; -PublishOutputDir &quot;$(PublishOutputDir)&quot; -ProjectDir &quot;$(ProjectDir)&quot; -TargetDir &quot;$(RealTargetDir)&quot; -AssemblyName &quot;$(AssemblyName)&quot; -Version &quot;$(Version)&quot;" />
+  </Target>
+
+</Project>

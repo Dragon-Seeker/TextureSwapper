@@ -1,0 +1,227 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <TargetFramework>netstandard2.1</TargetFramework>
+    <AssemblyName>TextureSwapper</AssemblyName>
+    <Product>Texture Swapper</Product>
+    <Version>1.1.11</Version>
+    
+    <Nullable>enable</Nullable>
+    <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
+    <LangVersion>14</LangVersion>
+    <RestoreAdditionalProjectSources>
+      https://api.nuget.org/v3/index.json;
+      https://nuget.bepinex.dev/v3/index.json;
+      https://nuget.samboy.dev/v3/index.json;
+      https://nuget.windows10ce.com/nuget/v3/index.json
+    </RestoreAdditionalProjectSources>
+    
+    <RootNamespace>io.wispforest.textureswapper</RootNamespace>
+    
+    <GameRoot>E:\Programs\Steam\steamapps\common\REPO</GameRoot>
+    <ManagedRoot>$(GameRoot)\REPO_Data\Managed</ManagedRoot>
+    
+    <!--    <SolutionDir Condition="'$(SolutionDir)' == ''">$(MSBuildThisFileDirectory)..\</SolutionDir>-->
+    <PublishOutputDir>$(MSBuildThisFileDirectory)PublishOutput</PublishOutputDir>
+    <AssetsDir>$(MSBuildThisFileDirectory)assets</AssetsDir>
+    <LibDir>.\libs</LibDir>
+    
+    <NetMagickVersion>14.10.1</NetMagickVersion>
+    <NetMagickType>Magick.NET-Q8-x64</NetMagickType>
+
+    <CopyLocalLockFileAssemblies>true</CopyLocalLockFileAssemblies>
+  </PropertyGroup>
+
+  <ItemGroup Condition="'$(Configuration)' == 'Debug'">
+    <ProjectReference Include="..\MediaHelper\MediaHelper.csproj" />
+  </ItemGroup>
+
+  <ItemGroup Condition="'$(Configuration)' == 'Release'">
+    <PackageReference Include="MediaHelper" Version="1.0.0" />
+  </ItemGroup>
+  
+  <!-- Global References -->
+  <ItemGroup>
+    <Compile Include="obj\Debug\netstandard2.1\MyPluginInfo.cs"/>
+
+    <PackageReference Include="Microsoft.CSharp" Version="4.7.0" />
+
+    <PackageReference Include="PolySharp" Version="1.15.0">
+      <PrivateAssets>all</PrivateAssets>
+      <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
+    </PackageReference>
+
+    <PackageReference Include="BepInEx.Analyzers" Version="1.*" />
+    <PackageReference Include="BepInEx.Core" Version="5.*" />
+    <Reference Include="UnityEngine"> <HintPath>$(ManagedRoot)\UnityEngine.dll</HintPath> </Reference>
+    <Reference Include="UnityEngine.CoreModule"> <HintPath>$(ManagedRoot)\UnityEngine.CoreModule.dll</HintPath> </Reference>
+    <PackageReference Include="BepInEx.PluginInfoProps" Version="2.*" />
+    <PackageReference Include="MonoMod" Version="22.7.31.1" />
+    <PackageReference Include="HarmonyX" Version="2.10.2" />
+
+    <!--  Basic Libs-->
+
+    <PackageReference Include="Endec" Version="1.1.0" />
+    <PackageReference Include="Endec.Json" Version="1.0.0" />
+
+    <PackageReference Include="StandardSocketsHttpHandler" Version="2.2.0.10" />
+
+    <!-- Game libs  -->
+    
+    <PackageReference Include="Zehs.REPOLib" Version="3.0.3"  />
+    <PackageReference Include="Newtonsoft.Json" Version="13.0.4" ExcludeAssets="all" />
+
+    <PackageReference Include="BULLETBOT-KeybindLib" Version="1.0.3" />
+
+    <!--  FFMPEG CORE AND ITS REQURED FILES  -->
+
+    <PackageReference Include="FFMpegCore" Version="5.2.0"/>
+    <PackageReference Include="Instances" Version="3.0.1"/>
+    <PackageReference Include="Microsoft.Bcl.AsyncInterfaces" Version="9.0.2"/>
+    <PackageReference Include="System.Buffers" Version="4.5.1"/>
+    <PackageReference Include="System.IO.Pipelines" Version="9.0.2"/>
+    <PackageReference Include="System.Memory" Version="4.5.5"/>
+    <PackageReference Include="System.Numerics.Vectors" Version="4.4.0"/>
+    <PackageReference Include="System.Runtime.CompilerServices.Unsafe" Version="6.0.0"/>
+    <PackageReference Include="System.Text.Encodings.Web" Version="9.0.2"/>
+    <PackageReference Include="System.Text.Json" Version="9.0.2"/>
+    <PackageReference Include="System.Threading.Tasks.Extensions" Version="4.5.4"/>
+
+    <!--  MAGICK AND ITS STUFF  -->
+
+    <PackageReference Include="$(NetMagickType)" Version="$(NetMagickVersion)" />
+    <Content Include="$(NuGetPackageRoot)\$(NetMagickType.ToLower())\$(NetMagickVersion)\runtimes\win-x64\native\Magick.Native-Q8-x64.dll">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+      <Link>Magick.Native-Q8-x64.dll</Link>
+    </Content>
+    <PackageReference Include="Magick.NET.Core" Version="$(NetMagickVersion)" />
+
+    <!--  NAudio AND REQUIRED STUFF  -->
+
+    <PackageReference Include="NAudio" Version="2.0.1" />
+    <PackageReference Include="NAudio.Asio" Version="2.2.1" />
+    <PackageReference Include="NAudio.Core" Version="2.2.1" />
+    <PackageReference Include="NAudio.Midi" Version="2.2.1" />
+    <PackageReference Include="NAudio.Wasapi" Version="2.2.1" />
+    <PackageReference Include="NAudio.WinForms" Version="2.2.1" />
+    <PackageReference Include="NAudio.WinMM" Version="2.2.1" />
+    <PackageReference Include="System.Security.AccessControl" Version="6.0.0" />
+    <PackageReference Include="System.Security.Principal.Windows" Version="5.0.0" />
+
+    <!--  Basic Unity files and game assembly  -->
+
+    <Reference Include="Assembly-CSharp"> <HintPath>$(ManagedRoot)\Assembly-CSharp.dll</HintPath> </Reference>
+    <Reference Include="Autodesk.Fbx"> <HintPath>$(ManagedRoot)\Autodesk.Fbx.dll</HintPath> </Reference>
+    <Reference Include="Facepunch.Steamworks.Win64"> <HintPath>$(ManagedRoot)\Facepunch.Steamworks.Win64.dll</HintPath> </Reference>
+    <Reference Include="FbxBuildTestAssets"> <HintPath>$(ManagedRoot)\FbxBuildTestAssets.dll</HintPath> </Reference>
+    <Reference Include="Klattersynth"> <HintPath>$(ManagedRoot)\Klattersynth.dll</HintPath> </Reference>
+    <Reference Include="Mono.Security"> <HintPath>$(ManagedRoot)\Mono.Security.dll</HintPath> </Reference>
+    <Reference Include="Newtonsoft.Json"> <HintPath>$(ManagedRoot)\Newtonsoft.Json.dll</HintPath> </Reference>
+    <Reference Include="Photon3Unity3D"> <HintPath>$(ManagedRoot)\Photon3Unity3D.dll</HintPath> </Reference>
+    <Reference Include="PhotonChat"> <HintPath>$(ManagedRoot)\PhotonChat.dll</HintPath> </Reference>
+    <Reference Include="PhotonRealtime"> <HintPath>$(ManagedRoot)\PhotonRealtime.dll</HintPath> </Reference>
+    <Reference Include="PhotonUnityNetworking"> <HintPath>$(ManagedRoot)\PhotonUnityNetworking.dll</HintPath> </Reference>
+    <Reference Include="PhotonUnityNetworking.Utilities"> <HintPath>$(ManagedRoot)\PhotonUnityNetworking.Utilities.dll</HintPath> </Reference>
+    <Reference Include="PhotonVoice.API"> <HintPath>$(ManagedRoot)\PhotonVoice.API.dll</HintPath> </Reference>
+    <Reference Include="PhotonVoice"> <HintPath>$(ManagedRoot)\PhotonVoice.dll</HintPath> </Reference>
+    <Reference Include="PhotonVoice.PUN"> <HintPath>$(ManagedRoot)\PhotonVoice.PUN.dll</HintPath> </Reference>
+    <Reference Include="Sirenix.OdinInspector.Attributes"> <HintPath>$(ManagedRoot)\Sirenix.OdinInspector.Attributes.dll</HintPath> </Reference>
+    <Reference Include="Sirenix.Serialization.Config"> <HintPath>$(ManagedRoot)\Sirenix.Serialization.Config.dll</HintPath> </Reference>
+    <Reference Include="Sirenix.Serialization"> <HintPath>$(ManagedRoot)\Sirenix.Serialization.dll</HintPath> </Reference>
+    <Reference Include="Sirenix.Utilities"> <HintPath>$(ManagedRoot)\Sirenix.Utilities.dll</HintPath> </Reference>
+    <Reference Include="Unity.AI.Navigation"> <HintPath>$(ManagedRoot)\Unity.AI.Navigation.dll</HintPath> </Reference>
+    <Reference Include="Unity.Formats.Fbx.Runtime"> <HintPath>$(ManagedRoot)\Unity.Formats.Fbx.Runtime.dll</HintPath> </Reference>
+    <Reference Include="Unity.InputSystem"> <HintPath>$(ManagedRoot)\Unity.InputSystem.dll</HintPath> </Reference>
+    <Reference Include="Unity.InputSystem.ForUI"> <HintPath>$(ManagedRoot)\Unity.InputSystem.ForUI.dll</HintPath> </Reference>
+    <Reference Include="Unity.Postprocessing.Runtime"> <HintPath>$(ManagedRoot)\Unity.Postprocessing.Runtime.dll</HintPath> </Reference>
+    <Reference Include="Unity.RenderPipelines.Core.Runtime"> <HintPath>$(ManagedRoot)\Unity.RenderPipelines.Core.Runtime.dll</HintPath> </Reference>
+    <Reference Include="Unity.RenderPipelines.Core.ShaderLibrary"> <HintPath>$(ManagedRoot)\Unity.RenderPipelines.Core.ShaderLibrary.dll</HintPath> </Reference>
+    <Reference Include="Unity.RenderPipelines.ShaderGraph.ShaderGraphLibrary"> <HintPath>$(ManagedRoot)\Unity.RenderPipelines.ShaderGraph.ShaderGraphLibrary.dll</HintPath> </Reference>
+    <Reference Include="Unity.TextMeshPro"> <HintPath>$(ManagedRoot)\Unity.TextMeshPro.dll</HintPath> </Reference>
+    <Reference Include="Unity.Timeline"> <HintPath>$(ManagedRoot)\Unity.Timeline.dll</HintPath> </Reference>
+    <Reference Include="Unity.VisualScripting.Antlr3.Runtime"> <HintPath>$(ManagedRoot)\Unity.VisualScripting.Antlr3.Runtime.dll</HintPath> </Reference>
+    <Reference Include="Unity.VisualScripting.Core"> <HintPath>$(ManagedRoot)\Unity.VisualScripting.Core.dll</HintPath> </Reference>
+    <Reference Include="Unity.VisualScripting.Flow"> <HintPath>$(ManagedRoot)\Unity.VisualScripting.Flow.dll</HintPath> </Reference>
+    <Reference Include="Unity.VisualScripting.State"> <HintPath>$(ManagedRoot)\Unity.VisualScripting.State.dll</HintPath> </Reference>
+    <Reference Include="UnityEngine.AccessibilityModule"> <HintPath>$(ManagedRoot)\UnityEngine.AccessibilityModule.dll</HintPath> </Reference>
+    <Reference Include="UnityEngine.AIModule"> <HintPath>$(ManagedRoot)\UnityEngine.AIModule.dll</HintPath> </Reference>
+    <Reference Include="UnityEngine.AndroidJNIModule"> <HintPath>$(ManagedRoot)\UnityEngine.AndroidJNIModule.dll</HintPath> </Reference>
+    <Reference Include="UnityEngine.AnimationModule"> <HintPath>$(ManagedRoot)\UnityEngine.AnimationModule.dll</HintPath> </Reference>
+    <Reference Include="UnityEngine.ARModule"> <HintPath>$(ManagedRoot)\UnityEngine.ARModule.dll</HintPath> </Reference>
+    <Reference Include="UnityEngine.AssetBundleModule"> <HintPath>$(ManagedRoot)\UnityEngine.AssetBundleModule.dll</HintPath> </Reference>
+    <Reference Include="UnityEngine.AudioModule"> <HintPath>$(ManagedRoot)\UnityEngine.AudioModule.dll</HintPath> </Reference>
+    <Reference Include="UnityEngine.ClothModule"> <HintPath>$(ManagedRoot)\UnityEngine.ClothModule.dll</HintPath> </Reference>
+    <Reference Include="UnityEngine.ClusterInputModule"> <HintPath>$(ManagedRoot)\UnityEngine.ClusterInputModule.dll</HintPath> </Reference>
+    <Reference Include="UnityEngine.ClusterRendererModule"> <HintPath>$(ManagedRoot)\UnityEngine.ClusterRendererModule.dll</HintPath> </Reference>
+    <Reference Include="UnityEngine.ContentLoadModule"> <HintPath>$(ManagedRoot)\UnityEngine.ContentLoadModule.dll</HintPath> </Reference>
+    <Reference Include="UnityEngine.CrashReportingModule"> <HintPath>$(ManagedRoot)\UnityEngine.CrashReportingModule.dll</HintPath> </Reference>
+    <Reference Include="UnityEngine.DirectorModule"> <HintPath>$(ManagedRoot)\UnityEngine.DirectorModule.dll</HintPath> </Reference>
+    <Reference Include="UnityEngine.DSPGraphModule"> <HintPath>$(ManagedRoot)\UnityEngine.DSPGraphModule.dll</HintPath> </Reference>
+    <Reference Include="UnityEngine.GameCenterModule"> <HintPath>$(ManagedRoot)\UnityEngine.GameCenterModule.dll</HintPath> </Reference>
+    <Reference Include="UnityEngine.GIModule"> <HintPath>$(ManagedRoot)\UnityEngine.GIModule.dll</HintPath> </Reference>
+    <Reference Include="UnityEngine.GridModule"> <HintPath>$(ManagedRoot)\UnityEngine.GridModule.dll</HintPath> </Reference>
+    <Reference Include="UnityEngine.HotReloadModule"> <HintPath>$(ManagedRoot)\UnityEngine.HotReloadModule.dll</HintPath> </Reference>
+    <Reference Include="UnityEngine.ImageConversionModule"> <HintPath>$(ManagedRoot)\UnityEngine.ImageConversionModule.dll</HintPath> </Reference>
+    <Reference Include="UnityEngine.IMGUIModule"> <HintPath>$(ManagedRoot)\UnityEngine.IMGUIModule.dll</HintPath> </Reference>
+    <Reference Include="UnityEngine.InputLegacyModule"> <HintPath>$(ManagedRoot)\UnityEngine.InputLegacyModule.dll</HintPath> </Reference>
+    <Reference Include="UnityEngine.InputModule"> <HintPath>$(ManagedRoot)\UnityEngine.InputModule.dll</HintPath> </Reference>
+    <Reference Include="UnityEngine.JSONSerializeModule"> <HintPath>$(ManagedRoot)\UnityEngine.JSONSerializeModule.dll</HintPath> </Reference>
+    <Reference Include="UnityEngine.LocalizationModule"> <HintPath>$(ManagedRoot)\UnityEngine.LocalizationModule.dll</HintPath> </Reference>
+    <Reference Include="UnityEngine.NVIDIAModule"> <HintPath>$(ManagedRoot)\UnityEngine.NVIDIAModule.dll</HintPath> </Reference>
+    <Reference Include="UnityEngine.ParticleSystemModule"> <HintPath>$(ManagedRoot)\UnityEngine.ParticleSystemModule.dll</HintPath> </Reference>
+    <Reference Include="UnityEngine.PerformanceReportingModule"> <HintPath>$(ManagedRoot)\UnityEngine.PerformanceReportingModule.dll</HintPath> </Reference>
+    <Reference Include="UnityEngine.Physics2DModule"> <HintPath>$(ManagedRoot)\UnityEngine.Physics2DModule.dll</HintPath> </Reference>
+    <Reference Include="UnityEngine.PhysicsModule"> <HintPath>$(ManagedRoot)\UnityEngine.PhysicsModule.dll</HintPath> </Reference>
+    <Reference Include="UnityEngine.ProfilerModule"> <HintPath>$(ManagedRoot)\UnityEngine.ProfilerModule.dll</HintPath> </Reference>
+    <Reference Include="UnityEngine.PropertiesModule"> <HintPath>$(ManagedRoot)\UnityEngine.PropertiesModule.dll</HintPath> </Reference>
+    <Reference Include="UnityEngine.RuntimeInitializeOnLoadManagerInitializerModule"> <HintPath>$(ManagedRoot)\UnityEngine.RuntimeInitializeOnLoadManagerInitializerModule.dll</HintPath> </Reference>
+    <Reference Include="UnityEngine.ScreenCaptureModule"> <HintPath>$(ManagedRoot)\UnityEngine.ScreenCaptureModule.dll</HintPath> </Reference>
+    <Reference Include="UnityEngine.SharedInternalsModule"> <HintPath>$(ManagedRoot)\UnityEngine.SharedInternalsModule.dll</HintPath> </Reference>
+    <Reference Include="UnityEngine.SpriteMaskModule"> <HintPath>$(ManagedRoot)\UnityEngine.SpriteMaskModule.dll</HintPath> </Reference>
+    <Reference Include="UnityEngine.SpriteShapeModule"> <HintPath>$(ManagedRoot)\UnityEngine.SpriteShapeModule.dll</HintPath> </Reference>
+    <Reference Include="UnityEngine.StreamingModule"> <HintPath>$(ManagedRoot)\UnityEngine.StreamingModule.dll</HintPath> </Reference>
+    <Reference Include="UnityEngine.SubstanceModule"> <HintPath>$(ManagedRoot)\UnityEngine.SubstanceModule.dll</HintPath> </Reference>
+    <Reference Include="UnityEngine.SubsystemsModule"> <HintPath>$(ManagedRoot)\UnityEngine.SubsystemsModule.dll</HintPath> </Reference>
+    <Reference Include="UnityEngine.TerrainModule"> <HintPath>$(ManagedRoot)\UnityEngine.TerrainModule.dll</HintPath> </Reference>
+    <Reference Include="UnityEngine.TerrainPhysicsModule"> <HintPath>$(ManagedRoot)\UnityEngine.TerrainPhysicsModule.dll</HintPath> </Reference>
+    <Reference Include="UnityEngine.TextCoreFontEngineModule"> <HintPath>$(ManagedRoot)\UnityEngine.TextCoreFontEngineModule.dll</HintPath> </Reference>
+    <Reference Include="UnityEngine.TextCoreTextEngineModule"> <HintPath>$(ManagedRoot)\UnityEngine.TextCoreTextEngineModule.dll</HintPath> </Reference>
+    <Reference Include="UnityEngine.TextRenderingModule"> <HintPath>$(ManagedRoot)\UnityEngine.TextRenderingModule.dll</HintPath> </Reference>
+    <Reference Include="UnityEngine.TilemapModule"> <HintPath>$(ManagedRoot)\UnityEngine.TilemapModule.dll</HintPath> </Reference>
+    <Reference Include="UnityEngine.TLSModule"> <HintPath>$(ManagedRoot)\UnityEngine.TLSModule.dll</HintPath> </Reference>
+    <Reference Include="UnityEngine.UI"> <HintPath>$(ManagedRoot)\UnityEngine.UI.dll</HintPath> </Reference>
+    <Reference Include="UnityEngine.UIElementsModule"> <HintPath>$(ManagedRoot)\UnityEngine.UIElementsModule.dll</HintPath> </Reference>
+    <Reference Include="UnityEngine.UIModule"> <HintPath>$(ManagedRoot)\UnityEngine.UIModule.dll</HintPath> </Reference>
+    <Reference Include="UnityEngine.UmbraModule"> <HintPath>$(ManagedRoot)\UnityEngine.UmbraModule.dll</HintPath> </Reference>
+    <Reference Include="UnityEngine.UnityAnalyticsCommonModule"> <HintPath>$(ManagedRoot)\UnityEngine.UnityAnalyticsCommonModule.dll</HintPath> </Reference>
+    <Reference Include="UnityEngine.UnityAnalyticsModule"> <HintPath>$(ManagedRoot)\UnityEngine.UnityAnalyticsModule.dll</HintPath> </Reference>
+    <Reference Include="UnityEngine.UnityConnectModule"> <HintPath>$(ManagedRoot)\UnityEngine.UnityConnectModule.dll</HintPath> </Reference>
+    <Reference Include="UnityEngine.UnityCurlModule"> <HintPath>$(ManagedRoot)\UnityEngine.UnityCurlModule.dll</HintPath> </Reference>
+    <Reference Include="UnityEngine.UnityTestProtocolModule"> <HintPath>$(ManagedRoot)\UnityEngine.UnityTestProtocolModule.dll</HintPath> </Reference>
+    <Reference Include="UnityEngine.UnityWebRequestAssetBundleModule"> <HintPath>$(ManagedRoot)\UnityEngine.UnityWebRequestAssetBundleModule.dll</HintPath> </Reference>
+    <Reference Include="UnityEngine.UnityWebRequestAudioModule"> <HintPath>$(ManagedRoot)\UnityEngine.UnityWebRequestAudioModule.dll</HintPath> </Reference>
+    <Reference Include="UnityEngine.UnityWebRequestModule"> <HintPath>$(ManagedRoot)\UnityEngine.UnityWebRequestModule.dll</HintPath> </Reference>
+    <Reference Include="UnityEngine.UnityWebRequestTextureModule"> <HintPath>$(ManagedRoot)\UnityEngine.UnityWebRequestTextureModule.dll</HintPath> </Reference>
+    <Reference Include="UnityEngine.UnityWebRequestWWWModule"> <HintPath>$(ManagedRoot)\UnityEngine.UnityWebRequestWWWModule.dll</HintPath> </Reference>
+    <Reference Include="UnityEngine.VehiclesModule"> <HintPath>$(ManagedRoot)\UnityEngine.VehiclesModule.dll</HintPath> </Reference>
+    <Reference Include="UnityEngine.VFXModule"> <HintPath>$(ManagedRoot)\UnityEngine.VFXModule.dll</HintPath> </Reference>
+    <Reference Include="UnityEngine.VideoModule"> <HintPath>$(ManagedRoot)\UnityEngine.VideoModule.dll</HintPath> </Reference>
+    <Reference Include="UnityEngine.VirtualTexturingModule"> <HintPath>$(ManagedRoot)\UnityEngine.VirtualTexturingModule.dll</HintPath> </Reference>
+    <Reference Include="UnityEngine.VRModule"> <HintPath>$(ManagedRoot)\UnityEngine.VRModule.dll</HintPath> </Reference>
+    <Reference Include="UnityEngine.WindModule"> <HintPath>$(ManagedRoot)\UnityEngine.WindModule.dll</HintPath> </Reference>
+    <Reference Include="UnityEngine.XRModule"> <HintPath>$(ManagedRoot)\UnityEngine.XRModule.dll</HintPath> </Reference>
+
+    
+  </ItemGroup>
+
+  <ItemGroup Condition="'$(TargetFramework.TrimEnd(`0123456789`))' == 'net'">
+    <PackageReference Include="Microsoft.NETFramework.ReferenceAssemblies" Version="1.0.2" PrivateAssets="all" />
+  </ItemGroup>
+
+  <Target Name="RunCompressScript" AfterTargets="Build">
+    <PropertyGroup>
+      <ProjectDir>$(MSBuildThisFileDirectory)\</ProjectDir>
+      <RealTargetDir>$(TargetDir)\</RealTargetDir>
+    </PropertyGroup>
+    <Exec Command="powershell -File &quot;$(MSBuildProjectDirectory)\PublishTask.ps1&quot; -PublishOutputDir &quot;$(PublishOutputDir)&quot; -ProjectDir &quot;$(ProjectDir)&quot; -TargetDir &quot;$(RealTargetDir)&quot; -AssemblyName &quot;$(AssemblyName)&quot; -Version &quot;$(Version)&quot;" />
+  </Target>
+</Project>

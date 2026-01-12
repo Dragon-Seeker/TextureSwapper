@@ -3,7 +3,9 @@ Microsoft Visual Studio Solution File, Format Version 12.00
 # Visual Studio Version 17
 VisualStudioVersion = 17.0.31903.59
 MinimumVisualStudioVersion = 10.0.40219.1
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "TextureSwapper", "TextureSwapper.csproj", "{87A99EF6-10D7-4519-B739-50670240A3FA}"
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "MediaHelper", "MediaHelper\MediaHelper.csproj", "{CC368412-DF43-402D-8120-E215BD5100C3}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Main", "Main\Main.csproj", "{8C2624E1-9EBF-4499-8E19-071E96C7D89B}"
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
@@ -11,12 +13,16 @@ Global
 		Release|Any CPU = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
-		HideSolutionNode = FALSE
-	EndGlobalSection
+        HideSolutionNode = FALSE
+    EndGlobalSection
 	GlobalSection(ProjectConfigurationPlatforms) = postSolution
-		{87A99EF6-10D7-4519-B739-50670240A3FA}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
-		{87A99EF6-10D7-4519-B739-50670240A3FA}.Debug|Any CPU.Build.0 = Debug|Any CPU
-		{87A99EF6-10D7-4519-B739-50670240A3FA}.Release|Any CPU.ActiveCfg = Release|Any CPU
-		{87A99EF6-10D7-4519-B739-50670240A3FA}.Release|Any CPU.Build.0 = Release|Any CPU
+		{CC368412-DF43-402D-8120-E215BD5100C3}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{CC368412-DF43-402D-8120-E215BD5100C3}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{CC368412-DF43-402D-8120-E215BD5100C3}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{CC368412-DF43-402D-8120-E215BD5100C3}.Release|Any CPU.Build.0 = Release|Any CPU
+		{8C2624E1-9EBF-4499-8E19-071E96C7D89B}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{8C2624E1-9EBF-4499-8E19-071E96C7D89B}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{8C2624E1-9EBF-4499-8E19-071E96C7D89B}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{8C2624E1-9EBF-4499-8E19-071E96C7D89B}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 EndGlobal
