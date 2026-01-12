@@ -10,14 +10,14 @@ using Sirenix.Utilities;
 
 namespace io.wispforest.textureswapper.api.config;
 
-public class LayeredConfigFile : ConfigFile, IDictionary<ConfigDefinition, ConfigEntryBase> {
-    protected readonly IList<ConfigFile> configFileOrder;
+public class LayeredConfigFile : DummyConfigFile, IDictionary<ConfigDefinition, ConfigEntryBase> {
+    protected readonly IList<ConfigFile> configFileOrder = [];
 
     public LayeredConfigFile(BaseUnityPlugin plugin, bool setAsConfigForPlugin = true) : this(MetadataHelper.GetMetadata(plugin)) {
         if (setAsConfigForPlugin) plugin.setPluginConfig(this);
     }
 
-    public LayeredConfigFile(BepInPlugin ownerMetadata) : base(Utility.CombinePaths(Paths.ConfigPath, $"{ownerMetadata.GUID}_layered_settings.cfg"), false, ownerMetadata) {
+    public LayeredConfigFile(BepInPlugin ownerMetadata) : base("layered_settings", ownerMetadata) {
         this.SaveOnConfigSet = false;
     }
     
@@ -40,7 +40,7 @@ public class LayeredConfigFile : ConfigFile, IDictionary<ConfigDefinition, Confi
         set => throw new InvalidOperationException("Directly setting a config entry is not supported");
     }
 
-    public ConfigEntryBase this[ConfigDefinition key] {
+    public new ConfigEntryBase this[ConfigDefinition key] {
         get {
             foreach (var configFile in configFileOrder) {
                 if (configFile.ContainsKey(key)) return configFile[key];

@@ -176,6 +176,8 @@ public class TooltipUI : SemiUI {
         messageParts.Clear();
         hasMessageChanged = true;
     }
+
+    public void removeMessage(TooltipKey key) => setMessage(key, null);
     
     public void setMessage(TooltipKey key, string? message) {
         if (!messageParts.ContainsKey(key)) {

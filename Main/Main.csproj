@@ -3,7 +3,7 @@
     <TargetFramework>netstandard2.1</TargetFramework>
     <AssemblyName>TextureSwapper</AssemblyName>
     <Product>Texture Swapper</Product>
-    <Version>1.1.11</Version>
+    <Version>1.2.0</Version>
     
     <Nullable>enable</Nullable>
     <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
@@ -61,7 +61,7 @@
     <!--  Basic Libs-->
 
     <PackageReference Include="Endec" Version="1.1.0" />
-    <PackageReference Include="Endec.Json" Version="1.0.0" />
+    <PackageReference Include="Endec.Json" Version="1.0.1" />
 
     <PackageReference Include="StandardSocketsHttpHandler" Version="2.2.0.10" />
 

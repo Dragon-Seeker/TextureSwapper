@@ -70,9 +70,7 @@ public static class DebugTooltipInfo {
                 });
     }
 
-    private static bool toggledTooltipEnabled = false;
-
-    private static bool tooltipEnabled => toggledTooltipEnabled || Plugin.config.showDebugInfoInTooltip();
+    private static bool toggledTooltipEnabled = Plugin.config.showDebugTooltipInfo();
 
     private static float countDown = 0;
     
@@ -80,20 +78,24 @@ public static class DebugTooltipInfo {
         if (SemiFunc.InputDown(dumpInfoBind.inputKey)) dumpInfo(findNewObj: true);
         if (SemiFunc.InputDown(toggleTooltipInfoBind.inputKey)) toggledTooltipEnabled = !toggledTooltipEnabled;
 
-        if (TooltipUI.DEBUG.predicate.isValid() && tooltipEnabled) {
-            countDown -= Time.deltaTime;
+        if (TooltipUI.DEBUG.predicate.isValid()) {
+            if (toggledTooltipEnabled) {
+                countDown -= Time.deltaTime;
 
-            if (countDown < 0) {
-                dumpInfo(messageHandler: info => {
-                    var tooltipUI = TooltipUI.instance;
+                if (countDown < 0) {
+                    dumpInfo(messageHandler: info => {
+                        var tooltipUI = TooltipUI.instance;
 
-                    tooltipUI?.setMessage(TooltipUI.DEBUG, info);
+                        tooltipUI?.setMessage(TooltipUI.DEBUG, info);
                     
-                    // TODO: CONFIG OPTION FOR THIS?
-                    return false;
-                });
+                        // TODO: CONFIG OPTION FOR THIS?
+                        return false;
+                    });
                 
-                countDown = Plugin.config.tooltipWaitTime();
+                    countDown = Plugin.config.tooltipWaitTime();
+                }
+            } else {
+                TooltipUI.instance?.removeMessage(TooltipUI.BASIC);
             }
         }
     }

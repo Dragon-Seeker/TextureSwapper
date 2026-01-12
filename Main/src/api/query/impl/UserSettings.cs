@@ -7,27 +7,40 @@ using io.wispforest.endec;
 using io.wispforest.endec.format.newtonsoft;
 using io.wispforest.endec.impl;
 using io.wispforest.textureswapper.utils;
+using Newtonsoft.Json;
 using Newtonsoft.Json.Linq;
 using Sirenix.Utilities;
 using Unity.VisualScripting;
+using JsonSerializer = io.wispforest.endec.format.newtonsoft.JsonSerializer;
 
 namespace io.wispforest.textureswapper.api.query.impl;
 
-public class UserSettings {
-    internal static bool isDirty = true;
+public static class UserSettings {
+    private static bool isDirty = true;
     
+    private static readonly System.Collections.Generic.ISet<Guid> alternativeCensorImageGroups = new HashSet<Guid>();
+    
+    private static bool rerunAlternativeCensorImages = false;
+
     private static string? userData = loadUserSettingsData();
-    private static Settings userSettings = data();
-    
+    private static Settings? userSettings = data();
+
     public static string? rawData() {
         reloadData();
         
         return userData;
     }
+    
+    public static Settings? data() {
+        reloadData();
+        
+        return userSettings;
+    }
+    
+    public static string folder => Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.UserProfile), "texture_swapper");
 
-    internal static string? loadUserSettingsData() {
-        var folderPath = Environment.GetFolderPath(Environment.SpecialFolder.UserProfile);
-        var filePath = Path.Combine(folderPath, "texture_swapper_user_settings.json");
+    private static string? loadUserSettingsData() {
+        var filePath = Path.Combine(folder, "user_settings.json");
 
         //Plugin.Logger.LogError($"[{filePath}]: ");
         if (!File.Exists(filePath)) return null;
@@ -44,6 +57,8 @@ public class UserSettings {
 
     internal static void updateSettings(Settings data, Action setCallback) {
         setCallback();
+        
+        if (!data.setup) return;
         
         JToken json1 = new JObject();
 
@@ -67,13 +82,19 @@ public class UserSettings {
         if (json1 is JObject jObj1) {
             json2.Merge(jObj1);
         }
+        
+        
+        var stream = new StringWriter();
+        
+        json2.WriteTo(new JsonTextWriter(stream), [ ]);
 
-        var finalData = JsonUtils.writeToString(json2);
+        var finalData = stream.ToString();
         
         Plugin.logIfDebugging(() => $"Final save user settings: {finalData}");
         
-        var folderPath = Environment.GetFolderPath(Environment.SpecialFolder.UserProfile);
-        var filePath = Path.Combine(folderPath, "texture_swapper_user_settings.json");
+        var filePath = Path.Combine(folder, "user_settings.json");
+
+        Directory.CreateDirectory(folder);
         
         File.WriteAllText(filePath, finalData);
         
@@ -91,15 +112,10 @@ public class UserSettings {
         if (prevSettings is not null) {
             rerunAlternativeCensorImages = prevSettings.alternativeCensorImages.Equals(userSettings.alternativeCensorImages);
         }
-        setAltenativeCensorImageGroups();
+        
+        setAltenativeCensorImageGroups(userSettings);
             
         isDirty = false;
-    }
-    
-    public static Settings? data() {
-        reloadData();
-        
-        return userSettings;
     }
     
     public static Settings dataOrEmpty() => data() ?? Settings.createEmpty();
@@ -122,36 +138,37 @@ public class UserSettings {
 
         return null;
     }
-
-    private static System.Collections.Generic.ISet<Guid> altenativeCensorImageGroups = new HashSet<Guid>();
     
-    public static bool isAlternativeCensorImage(Guid guid) {
-        return altenativeCensorImageGroups.Contains(guid);
-    }
-
-    private static bool rerunAlternativeCensorImages = false;
-
-    private static void setAltenativeCensorImageGroups() {
-        altenativeCensorImageGroups = LinqUtility.ToHashSet(
-                userSettings
-                        .alternativeCensorImages
-                        .Values
-                        .SelectMany(list => list.Select(query => query.guid))
+    public static bool isAlternativeCensorImage(Guid guid) => alternativeCensorImageGroups.Contains(guid);
+    
+    private static void setAltenativeCensorImageGroups(Settings settings) {
+        if (settings == null) throw new Exception("FUCCCCCCCCCCCCCCCCCCCCCCCCCCCC");
+        if (settings.alternativeCensorImages == null) throw new Exception("SHITTTTTTTTTTTTTTTTTTT");
+        if (alternativeCensorImageGroups == null) throw new Exception("CRACKKKKKKKKKERRRRRRRRRRRRRRRRRRSSSSSSSSSSSS");
+        
+        alternativeCensorImageGroups.Clear();
+        alternativeCensorImageGroups.addAll(
+            LinqUtility.ToHashSet(
+                settings
+                    .alternativeCensorImages
+                    .Values
+                    .SelectMany(list => list.Select(query => query.guid))
+            )
         );
 
         if (rerunAlternativeCensorImages) {
-            Plugin.runQueries("alternative_censor_images", userSettings.alternativeCensorImages);
+            Plugin.runQueries("alternative_censor_images", settings.alternativeCensorImages);
             
             rerunAlternativeCensorImages = false;
         }
     }
 
     public static Identifier? getAlternativeCensorImage() {
-        if (altenativeCensorImageGroups.Count <= 0) return null;
+        if (alternativeCensorImageGroups.Count <= 0) return null;
         
         var entries = MediaSwapperStorage.getMaterials([MediaType.IMAGE, MediaType.VIDEO], (id) => {
             var result = MediaSwapperStorage.getResult(id);
-            return result is not null && altenativeCensorImageGroups.Contains(result!.guid);
+            return result is not null && alternativeCensorImageGroups.Contains(result!.guid);
         });
 
         if (entries.Count <= 0) return null;
@@ -163,7 +180,7 @@ public class UserSettings {
 }
 
 public record Settings {
-    internal static Settings createEmpty() => new (false, true, new TagFilteringData(), new TagFilteringData(), new Dictionary<string, ApplicationCredentials>(), new Dictionary<Identifier, IList<MediaQuery>>());
+    internal static Settings createEmpty() => new (false, true, new (), new (), new Dictionary<string, ApplicationCredentials>(), new Dictionary<Identifier, IList<MediaQuery>>());
 
     // TODO: MAYBE WE NO LONGER NEED INTERNAL?
     public bool debugLogging { get; internal set => UserSettings.updateSettings(this, () => field = value); }
@@ -173,38 +190,74 @@ public record Settings {
     public IDictionary<string, ApplicationCredentials> applicationCredentials { get; internal set => UserSettings.updateSettings(this, () => field = value); }
     public IDictionary<Identifier, IList<MediaQuery>> alternativeCensorImages { get; internal set => UserSettings.updateSettings(this, () => field = value); }
 
-    private Settings(bool debugLogging, bool restrictiveQueries, TagFilteringData blackListData, TagFilteringData whiteListData, IDictionary<string, ApplicationCredentials> applicationCredentials, IDictionary<Identifier, IList<MediaQuery>> alternativeCensorImages) {
+    public float tooltipRange { get; internal set => UserSettings.updateSettings(this, () => field = value); }
+    public float tooltipWaitTime { get; internal set => UserSettings.updateSettings(this, () => field = value); }
+    public bool showBasicTooltipInfo { get; internal set => UserSettings.updateSettings(this, () => field = value); }
+    public bool showDescriptionInTooltipInfo { get; internal set => UserSettings.updateSettings(this, () => field = value); }
+    public bool showTagsInTooltipInfo { get; internal set => UserSettings.updateSettings(this, () => field = value); }
+    public bool showDebugTooltipInfo { get; internal set => UserSettings.updateSettings(this, () => field = value); }
+    public bool sendTooltipInfoToLog { get; internal set => UserSettings.updateSettings(this, () => field = value); }
+    
+    internal bool setup = false;
+
+    private Settings(
+        bool debugLogging, 
+        bool restrictiveQueries, 
+        TagFilteringData blackListData, 
+        TagFilteringData whiteListData, 
+        IDictionary<string, ApplicationCredentials> applicationCredentials, 
+        IDictionary<Identifier, IList<MediaQuery>> alternativeCensorImages,
+        float tooltipRange = 50f,
+        float tooltipWaitTime = 0.05f,
+        bool showBasicTooltipInfo = true,
+        bool showTagsInTooltipInfo = false,
+        bool showDescriptionInTooltipInfo = true,
+        bool showDebugTooltipInfo = false,
+        bool sendTooltipInfoToLog = false
+    ) {
         this.debugLogging = debugLogging;
         this.restrictiveQueries = restrictiveQueries;
         this.blackListData = blackListData;
         this.whiteListData = whiteListData;
         this.applicationCredentials = applicationCredentials;
         this.alternativeCensorImages = alternativeCensorImages;
+        this.tooltipRange = tooltipRange;
+        this.tooltipWaitTime = tooltipWaitTime;
+        this.showBasicTooltipInfo = showBasicTooltipInfo;
+        this.showTagsInTooltipInfo = showTagsInTooltipInfo;
+        this.showDescriptionInTooltipInfo = showDescriptionInTooltipInfo;
+        this.showDebugTooltipInfo = showDebugTooltipInfo;
+        this.sendTooltipInfoToLog = sendTooltipInfoToLog;
+        setup = true;
     }
 
     public static readonly StructEndec<Settings> ENDEC = StructEndecBuilder.of(
-        endec.Endec.BOOLEAN.fieldOf<Settings>("debugging_logging", s => s.debugLogging),
-        endec.Endec.BOOLEAN.fieldOf<Settings>("restrictive_queries", s => s.restrictiveQueries),
+        Endec.BOOLEAN.fieldOf<Settings>("debugging_logging", s => s.debugLogging),
+        Endec.BOOLEAN.fieldOf<Settings>("restrictive_queries", s => s.restrictiveQueries),
         TagFilteringData.ENDEC.fieldOf<Settings>("blacklist", s => s.blackListData),
         TagFilteringData.ENDEC.fieldOf<Settings>("whitelist", s => s.whiteListData),
         ApplicationCredentials.ENDEC.mapOf().fieldOf<Settings>("account_credentials", s => s.applicationCredentials),
         MediaQueryTypeRegistry.GROUPED_QUERY_DATA.optionalFieldOf<Settings>("query_entries", s => s.alternativeCensorImages, () => new Dictionary<Identifier, IList<MediaQuery>>()),
-        (debugLogging, restrictiveQueries, blackListData, whiteListData, applicationCredentials, alternativeCensorImages) => new Settings(debugLogging, restrictiveQueries, blackListData, whiteListData, applicationCredentials, alternativeCensorImages)
+        Endec.FLOAT.fieldOf<Settings>("tooltip_range", s => s.tooltipRange),
+        Endec.FLOAT.fieldOf<Settings>("tooltip_wait_time", s => s.tooltipWaitTime),
+        Endec.BOOLEAN.fieldOf<Settings>("show_basic_tooltip_info", s => s.showBasicTooltipInfo),
+        Endec.BOOLEAN.fieldOf<Settings>("show_description_in_tooltip_info", s => s.showDescriptionInTooltipInfo),
+        Endec.BOOLEAN.fieldOf<Settings>("show_tags_in_tooltip_info", s => s.showTagsInTooltipInfo),
+        Endec.BOOLEAN.fieldOf<Settings>("show_debug_tooltip_info", s => s.showDebugTooltipInfo),
+        Endec.BOOLEAN.fieldOf<Settings>("send_tooltip_info_to_log", s => s.sendTooltipInfoToLog),
+        (debugLogging, restrictiveQueries, blackListData, whiteListData, applicationCredentials, alternativeCensorImages, tooltipRange, tooltipWaitTime, showBasicTooltipInfo, showDescriptionInTooltipInfo, showTagsInTooltipInfo, showDebugTooltipInfo, sendTooltipInfoToLog) 
+            => new Settings(debugLogging, restrictiveQueries, blackListData, whiteListData, applicationCredentials, alternativeCensorImages, tooltipRange, tooltipWaitTime, showBasicTooltipInfo, showDescriptionInTooltipInfo, showTagsInTooltipInfo, showDebugTooltipInfo, sendTooltipInfoToLog)
     );
 }
 
 public class TagFilteringData(IList<string>? tags = null) {
 
-    public TagFilteringData(string data) : this(data.Split(",").ToList()) { }
-
-    public IList<string> tags { get; internal set; } = tags ?? new List<string>();
+    public IList<string> tags { get; } = tags ?? new List<string>();
 
     public static readonly StructEndec<TagFilteringData> ENDEC = StructEndecBuilder.of(
-        Endec.STRING.listOf().fieldOf<TagFilteringData>("user_defined_tags", d => d.tags),
+        Endec.STRING.listOf().fieldOf<TagFilteringData>("tags", d => d.tags),
         (tags) => new TagFilteringData(tags)
     );
-
-    public string tagsAsString() => tags.Join(delimiter: ",");
 }
 
 public record ApplicationCredentials(string username, string apiKey) {

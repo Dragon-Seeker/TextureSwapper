@@ -12,21 +12,22 @@ namespace io.wispforest.textureswapper;
 
 public class ConfigInstance : LayeredConfigFile {
     
-    public readonly Getter<bool> enableDebugLogging;
+    public readonly Getter<bool> enableDebugLogging = () => UserSettings.dataOrEmpty().debugLogging;
     public readonly Getter<bool> clientSideMode;
     public readonly Getter<IList<string>> textureSwapTargets;
-    public readonly Getter<bool> shouldRestrictQueries;
+    public readonly Getter<bool> shouldRestrictQueries = () => UserSettings.dataOrEmpty().restrictiveQueries;
     
-    public readonly Getter<float> tooltipRange;
-    public readonly Getter<float> tooltipWaitTime;
-    public readonly Getter<bool> showBasicTooltipInfo;
+    public readonly Getter<float> tooltipRange = () => UserSettings.dataOrEmpty().tooltipRange;
+    public readonly Getter<float> tooltipWaitTime = () => UserSettings.dataOrEmpty().tooltipWaitTime;
+    public readonly Getter<bool> showBasicTooltipInfo = () => UserSettings.dataOrEmpty().showBasicTooltipInfo;
+    public readonly Getter<bool> showDescriptionInTooltipInfo = () => UserSettings.dataOrEmpty().showDescriptionInTooltipInfo;
+    public readonly Getter<bool> showTagsInTooltipInfo = () => UserSettings.dataOrEmpty().showTagsInTooltipInfo;
+    public readonly Getter<bool> showDebugTooltipInfo = () => UserSettings.dataOrEmpty().showDebugTooltipInfo;
+    public readonly Getter<bool> sendTooltipInfoToLog = () => UserSettings.dataOrEmpty().sendTooltipInfoToLog;
     
     public readonly Getter<int> infoUnpackingAmount;
     public readonly Getter<float> targetDebugRendererLifeSpan;
     public readonly Getter<bool> showTargetDebugRenderer;
-    
-    public readonly Getter<bool> showDebugInfoInTooltip;
-    public readonly Getter<bool> sendTooltipInfoToLog;
     
     public readonly Getter<int> dynamicQueriesLevelCount;
     
@@ -46,12 +47,14 @@ public class ConfigInstance : LayeredConfigFile {
     public readonly Getter<IList<string>> whitelistedTags;
     
     private readonly ConfigFile primaryConfigFile;
+    private readonly ConfigFile userSettingsConfigFile;
 
     public ConfigInstance(BaseUnityPlugin plugin, ConfigFile primaryConfigFile) : base(plugin) {
         this.primaryConfigFile = primaryConfigFile;
+        this.userSettingsConfigFile = new DummyConfigFile("user_settings", MetadataHelper.GetMetadata(plugin));
         
         configFileOrder.Add(primaryConfigFile);
-        configFileOrder.Add(this);
+        configFileOrder.Add(userSettingsConfigFile);
 
         var filteredCommaList = Converter.COMMA_SEPARATED_LIST.xmap(input => input.Where(s => !s.IsNullOrWhiteSpace() && s.Length > 0).ToList() as IList<string>, input => input);
         
@@ -62,14 +65,8 @@ public class ConfigInstance : LayeredConfigFile {
                 "ClientSideMode", "Enables the ability to use a client based random value that pseudo syncs if the photos are the same on all clients", 
                 false, out clientSideMode
             ).bind(
-                "DebugLogging", "Enables some useful debug logging to check and or validate if things are going properly", 
-                false, out enableDebugLogging
-            ).bind(
                 "TextureTargets", "All texture targets to replace with custom images, Seperated by commas (,) without any spaces",
                 DEFAULT_TEXTURE_TARGETS, out textureSwapTargets, filteredCommaList
-            ).bind(
-                "RestrictiveQueries", "Will attempt to restrict the queries allowed as an attempt to be safer with image content that is requested", 
-                false, out shouldRestrictQueries
             ).bind(
                 "DisallowedTags", "A list of tags that are disallowed from being shown, Seperated by commas (,) without any spaces",
                 new List<string>(), out blacklistedTags, filteredCommaList
@@ -83,16 +80,28 @@ public class ConfigInstance : LayeredConfigFile {
         
         //--
         
-        primaryConfigFile.section("Tooltip")
+        userSettingsConfigFile.section("Tooltip")
             .bind(
                 "WaitTime", "Adjust the time between checking for a tooltip object the player is looking at", 
-                0.05f, out tooltipWaitTime
+                0.05f, builder => builder.onChange(value => UserSettings.dataOrEmpty().tooltipWaitTime = value)
             ).bind(
                 "Range", "Adjust how far a given tooltip object may be picked up", 
-                100f, out tooltipRange
+                100f, builder => builder.onChange(value => UserSettings.dataOrEmpty().tooltipRange = value)
             ).bind(
                 "ShowBasicInfoInTooltip", "Adjust if the basic info should show within the tooltip", 
-                true, out showBasicTooltipInfo
+                true, builder => builder.onChange(value => UserSettings.dataOrEmpty().showBasicTooltipInfo = value)
+            ).bind(
+                "ShowDebugInfoInTooltip", "Toggles if debug info will show within tooltip info", 
+                false, builder => builder.onChange(value => UserSettings.dataOrEmpty().showBasicTooltipInfo = value)
+            ).bind( 
+                "ShowTagsInTooltipInfo", "Toggles if tag information will show up in tooltip info", 
+                false, builder => builder.onChange(value => UserSettings.dataOrEmpty().showTagsInTooltipInfo = value)
+            ).bind( 
+                "ShowDescriptionInTooltipInfo", "Toggles if description information will show up in tooltip info", 
+                false, builder => builder.onChange(value => UserSettings.dataOrEmpty().showTagsInTooltipInfo = value)
+            ).bind( 
+                "SendTooltipInfoToLog", "Attempt to send tooltip info to log", 
+                false, builder => builder.onChange(value => UserSettings.dataOrEmpty().sendTooltipInfoToLog = value)
             );
         
         //--
@@ -107,12 +116,6 @@ public class ConfigInstance : LayeredConfigFile {
             ).bind(
                 "TargetDebugRendererLifeSpan", "Adjust the amount of time the given targeted objects debug renderer will persist for", 
                 6, out targetDebugRendererLifeSpan
-            ).bind(
-                "ShowDebugInfoInTooltip", "Attempt to show debug info within the tooltip", 
-                false, out showDebugInfoInTooltip
-            ).bind( 
-                "SendTooltipInfoToLog", "Attempt to send tooltip info to log", 
-                false, out sendTooltipInfoToLog
             );
         
         //--
@@ -156,7 +159,7 @@ public class ConfigInstance : LayeredConfigFile {
 
         var tagConvertor = filteredCommaList.xmap(input => new TagFilteringData(input), input => input.tags);
         
-        this.section("User Specific")
+        userSettingsConfigFile.section("User Specific")
             .bind(
                 "DebugLogging", "Enables some useful debug logging to check and or validate if things are going properly",
                 false, builder => builder.onChange(value => UserSettings.dataOrEmpty().debugLogging = value)

@@ -92,9 +92,7 @@ public class BasicTooltipInfo {
         return null;
     }
 
-    private static bool toggledTooltipEnabled = false;
-    
-    private static bool tooltipEnabled => toggledTooltipEnabled || Plugin.config.showBasicTooltipInfo();
+    private static bool toggledTooltipEnabled = Plugin.config.showBasicTooltipInfo();
 
     private static float countDown = 0;
     
@@ -102,10 +100,10 @@ public class BasicTooltipInfo {
         if (SemiFunc.InputDown(dumpInfoBind.inputKey)) dumpInfo(findNewObj: true);
         if (SemiFunc.InputDown(toggleTooltipInfoBind.inputKey)) toggledTooltipEnabled = !toggledTooltipEnabled;
 
-        if (TooltipUI.BASIC.predicate.isValid() && tooltipEnabled) {
-            countDown -= Time.deltaTime;
+        if (TooltipUI.BASIC.predicate.isValid()) {
+            if (toggledTooltipEnabled) {
+                countDown -= Time.deltaTime;
 
-            if (countDown < 0) {
                 dumpInfo(messageHandler: info => {
                     var tooltipUI = TooltipUI.instance;
 
@@ -114,8 +112,8 @@ public class BasicTooltipInfo {
                     // TODO: CONFIG OPTION FOR THIS?
                     return false;
                 });
-                
-                countDown = Plugin.config.tooltipWaitTime();
+            } else {
+                TooltipUI.instance?.removeMessage(TooltipUI.BASIC);
             }
         }
     }
