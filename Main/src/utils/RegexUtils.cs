@@ -11,7 +11,7 @@ public class RegexUtils {
     
     public static readonly StructEndec<RegexRawData> RAW_DATA_ENDEC = StructEndecBuilder.of(
         endec.Endec.STRING.fieldOf<RegexRawData>("regex", data => data.rawPattern),
-        endec.Endec.STRING.listOf().fieldOf<RegexRawData>("regex", data => data.options),
+        endec.Endec.STRING.listOf().optionalFieldOf<RegexRawData>("flags", data => data.options, () => []),
         (s, list) => new RegexRawData(s, list)
     );
     
@@ -49,6 +49,7 @@ public class RegexUtils {
         };
     }
 }
+
 
 public class RegexRawData(string rawPattern, IList<string> options) {
     public string rawPattern { get; } = rawPattern;

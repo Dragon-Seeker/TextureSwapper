@@ -1,6 +1,7 @@
 ﻿using System;
 using System.IO;
 using io.wispforest.textureswapper.api;
+using io.wispforest.textureswapper.api.core;
 using Unity.VisualScripting;
 using UnityEngine;
 using Material = UnityEngine.Material;

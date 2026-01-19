@@ -3,11 +3,12 @@ using System.Collections.Generic;
 using System.Linq;
 using BepInEx.Configuration;
 using HarmonyLib;
+using io.wispforest.textureswapper.api.core;
 
-namespace io.wispforest.textureswapper.utils;
+namespace io.wispforest.textureswapper.api.config;
 
 public static class ConfigFileExtensions {
-    public static SectionBinder section(this ConfigFile file, string section) => new (file, section);
+    public static SectionBinder section(this ConfigFile file, string section) => new (null, file, section);
     
     public static void settingsChangedSafe<T>(this ConfigEntry<T> entry, EntryChangedHandler<T> changedHandler) {
         var isLocked = false;
@@ -38,6 +39,12 @@ public class ConfigEntryBuilder<T, R>(SectionBinder binder, string key, Converte
     
     private bool hasDescription = false;
 
+    internal ConfigEntryBuilder<T, R> handle(Builder<T, R>? builder) {
+        builder?.Invoke(this);
+        
+        return this;
+    }
+
     public ConfigEntryBuilder<T, R> defaultValue(R defaultValue) {
         _defaultValue = defaultValue;
         hasDefaultValue = true;
@@ -51,7 +58,7 @@ public class ConfigEntryBuilder<T, R>(SectionBinder binder, string key, Converte
         return this;
     }
     
-    public ConfigEntryBuilder<T, R> description(AcceptableValueBase acceptableValues) {
+    public ConfigEntryBuilder<T, R> valuePredicate(AcceptableValueBase acceptableValues) {
         _acceptableValues = acceptableValues;
         
         return this;
@@ -64,7 +71,7 @@ public class ConfigEntryBuilder<T, R>(SectionBinder binder, string key, Converte
     }
 
     public ConfigEntryBuilder<T, R> onChange(EntryChangedHandler<R> callback) {
-        this._onChangeCallback = callback;
+        this._onChangeCallback = this._onChangeCallback?.and(callback) ?? callback;
 
         return this;
     }
@@ -100,7 +107,12 @@ public delegate T Validator<T>(T t);
 
 public delegate void EntryChangedHandler<T>(ConfigEntryBase entry, T newValue, Func<T, T> setter);
 
-public delegate T Getter<out T>();
+public static class EntryChangedHandlerExt {
+    public static EntryChangedHandler<T> and<T>(this EntryChangedHandler<T> baseHandler, EntryChangedHandler<T> extraHandler) => (entry, value, setter) => {
+        baseHandler(entry, value, setter);
+        extraHandler(entry, value, setter);
+    };
+}
 
 public interface Converter {
     public static Converter<T, R> of<T, R>(System.Converter<T, R> to, System.Converter<R, T> from) => new ConvertorImpl<T, R>(to, from);
@@ -119,28 +131,41 @@ public interface Converter<T, R> : Converter {
     public Converter<T, A> xmap<A>(System.Converter<R, A> to, System.Converter<A, R> from) => new ConvertorImpl<T, A>(t => to(this.to(t)), a => this.from(from(a)));
 }
 
-public class ConvertorImpl<T, R>(System.Converter<T, R> _to, System.Converter<R, T> _from) : Converter<T, R> {
+internal class ConvertorImpl<T, R>(System.Converter<T, R> _to, System.Converter<R, T> _from) : Converter<T, R> {
     public R to(T t) => _to(t);
     public T from(R r) => _from(r);
 }
 
-public class SectionBinder(ConfigFile configFile, string section) {
+public class SectionBinder(ConfigFile? uiParent, ConfigFile fileParent, string section) {
     
     public SectionBinder bind<T>(string key, T defaultValue, Builder<T, T>? builderAction) => bind(key, null, defaultValue, out ConfigEntry<T> _, builderAction);
 
     public SectionBinder bind<T>(string key, T defaultValue, out ConfigEntry<T> field, Builder<T, T>? builderAction) => bind(key, null, defaultValue, out field, builderAction);
     
     public SectionBinder bind<T>(string key, string description, T defaultValue, Builder<T, T>? builderAction = null) => bind(key, description, defaultValue, out ConfigEntry<T> _, builderAction);
+    
+    public SectionBinder bind<T>(string key, string description, Property<T> property, Builder<T, T>? builderAction = null)  {
+        return bind(key, description, property.get(), out ConfigEntry<T> _, builder => {
+            builder
+                .handle(builderAction)
+                .onChange(property.set);
+        });
+    }
+    
+    public SectionBinder bind<T, R>(string key, string description, Property<R> property, Converter<T, R> converter, Builder<T, R>? builderAction = null)  {
+        return bind(key, description, property.get(), out _, converter, builder => {
+            builder
+                .handle(builderAction)
+                .onChange(property.set);
+        });
+    }
 
     public SectionBinder bind<T>(string key, string? description, T defaultValue, out ConfigEntry<T> field, Builder<T, T>? builderAction = null) {
-        var builder = new ConfigEntryBuilder<T, T>(this, key, Converter.of<T>());
-
-        builder.description(description)
-            .defaultValue(defaultValue);
-        
-        builderAction?.Invoke(builder);
-
-        builder.bind(out field);
+        new ConfigEntryBuilder<T, T>(this, key, Converter.of<T>())
+            .description(description)
+            .defaultValue(defaultValue)
+            .handle(builderAction)
+            .bind(out field);
 
         return this;
     }
@@ -159,24 +184,14 @@ public class SectionBinder(ConfigFile configFile, string section) {
         bind(key, description, defaultValue, out _, converter, builderAction);
     
     public SectionBinder bind<T, R>(string key, string? description, R defaultValue, out Getter<R> getter, Converter<T, R> converter, Builder<T, R>? builderAction = null) {
-        var builder = new ConfigEntryBuilder<T, R>(this, key, converter);
-
-        builder.description(description)
-            .defaultValue(defaultValue);
-        
-        builderAction?.Invoke(builder);
-
-        var originalCallback = builder._onChangeCallback;
-
         var hasChanged = true;
         
-        builder._onChangeCallback = (entry, value, setter) => {
-            originalCallback?.Invoke(entry, value, setter);
-
-            hasChanged = true;
-        };
-
-        builder.bind(out var field);
+        new ConfigEntryBuilder<T, R>(this, key, converter)
+            .description(description)
+            .defaultValue(defaultValue)
+            .handle(builderAction)
+            .onChange((_, _, _) => hasChanged = true)
+            .bind(out var field);
 
         var value = converter.to(field.Value);
         
@@ -192,7 +207,11 @@ public class SectionBinder(ConfigFile configFile, string section) {
     //--
     
     internal SectionBinder bind<T>(out ConfigEntry<T> field, string key, T defaultValue, ConfigDescription? configDescription = null) {
-        field = configFile.Bind(section, key, defaultValue, configDescription);
+        if (uiParent is LayeredConfigFile layeredConfigFile) {
+            field = layeredConfigFile.Bind(fileParent, section, key, defaultValue, configDescription);
+        } else {
+            field = fileParent.Bind(section, key, defaultValue, configDescription);
+        }
         
         return this;
     }

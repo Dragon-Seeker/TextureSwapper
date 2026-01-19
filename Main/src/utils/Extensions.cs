@@ -230,30 +230,8 @@ public static class GameObjectExtensions {
         return gameObject.transform.addChild(name, resetLocals);
     }
     
-    public static void unpackChildrenGameObjects(this GameObject gameObject, EntryHandler<GameObject> handler, EntryNestScopeCallback callback) {
-        handler(gameObject);
-
-        foreach (var childObj in gameObject.transform.childrenObjects()) callback(() => childObj.unpackChildrenGameObjects(handler, callback));
-    }
-    
-    public static void unpackChildrenGameObjects(this GameObject gameObject, EntryHandler<GameObject> handler) {
-        handler(gameObject);
-        
-        foreach(var childObj in gameObject.transform.childrenObjects()) childObj.unpackChildrenGameObjects(handler);
-    }
-    
     public static IEnumerable<GameObject> unpackGameObject(this GameObject gameObject) {
-        var children = gameObject.GetComponentsInChildren<Transform>().Select(child => child.gameObject);
-
-        return new[] { gameObject }.Concat(children);
-    }
-    
-    public static IEnumerable<GameObject> getAllChildrenObjects(this GameObject gameObject) {
-        var children = new List<GameObject>();
-        
-        gameObject.unpackChildrenGameObjects(o => children.Add(o));
-        
-        return children;
+        return new[] { gameObject }.Concat(gameObject.transform.childrenObjects().SelectMany(o => o.unpackGameObject()));
     }
     
     public static string dumpDebugInfoTree(this GameObject gameObject, string indent = "  ", string indentSuffix = "", 
@@ -287,7 +265,7 @@ public static class GameObjectExtensions {
     }
 }
 
-public static class ObjectExtensions {
+public static class ObjectUtils {
     public static void unpackChildrenCSharpObjects(this System.Object obj, EntryHandler<System.Object> entryHandler, EntryUnpacker<System.Object>? unpacker, EntryNestScopeCallback nestScope) {
         entryHandler(obj);
 

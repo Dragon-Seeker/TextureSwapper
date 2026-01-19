@@ -1,9 +1,9 @@
 ﻿namespace io.wispforest.textureswapper.api.query;
 
 public interface RatedMediaResult {
-    MediaRating getRating();
+    MediaRating rating { get; }
 
     public bool isSafe() {
-        return getRating().Equals(MediaRating.SAFE);
+        return rating.Equals(MediaRating.SAFE);
     }
 }

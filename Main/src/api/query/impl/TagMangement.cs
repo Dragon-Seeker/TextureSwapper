@@ -9,7 +9,7 @@ namespace io.wispforest.textureswapper.api.query.impl;
 public class TagMangement {
     
     public static IList<string> getUserGlobalBlacklist() {
-        var tags = UserSettings.data()?.blackListData.tags;
+        var tags = UserSettings.data?.blackListData.tags;
 
         if (tags is not null) return tags;
         
@@ -20,7 +20,7 @@ public class TagMangement {
     }
     
     public static IList<string> getUserGlobalWhitelist() {
-        var tags = UserSettings.data()?.whiteListData.tags;
+        var tags = UserSettings.data?.whiteListData.tags;
 
         if (tags is not null) return tags;
         

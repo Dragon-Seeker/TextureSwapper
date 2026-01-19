@@ -157,7 +157,8 @@ public class ArgKey<T> : ArgKey {
 public delegate Result<T?> ArgumentParser<T>(string str);
 
 public static class ArgumentParsers {
-    public static ArgumentParser<int> integerNum() {
+    public static ArgumentParser<int> 
+        integerNum() {
         return str => of(int.TryParse(str, out var result), result, str);
     }
     

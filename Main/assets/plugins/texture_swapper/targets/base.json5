@@ -1,0 +1,68 @@
+﻿{
+  "id": "texture_swapper:base_targets",
+  "targets": [
+    // Targets most Paintings found in the academy, McJannek, manor but only some in museum
+    {
+      "type": "texture_swapper:regex_name",
+      "target_type": "game_object",
+      "name_regex": {
+        "regex": "^(?=.*[pP]ainting.*)((?!.*frame.*)).*$",
+        "flags": ["i", "m"]
+      }
+    },
+    // Targets tv's in McJannek 
+    {
+      "type": "texture_swapper:regex_material",
+      "name_regex": {
+        "regex": "^(broken screen)?(regular material 01)?( \\([iI]nstance\\))?$",
+        "flags": ["i", "m"]
+      }
+    },
+    // Targets magazine stands in service station
+    {
+      "type": "texture_swapper:regex_name",
+      "target_type": "game_object",
+      "name_regex": {
+        "regex": "^([mM]agazine\\d*) \\([iI]nstance\\)$",
+        "flags": ["i", "m"]
+      }
+    },
+    // Targets magazine stacks in service station
+    {
+      "type": "texture_swapper:regex_name",
+      "target_type": "game_object",
+      "name_regex": {
+        "regex": "([mM]agazine stack)",
+        "flags": ["i", "m"]
+      }
+    },
+    // Targets wizard wall flags within the academy
+    {
+      "type": "texture_swapper:regex_name",
+      "target_type": "game_object",
+      "name_regex": {
+        "regex": "([wW]izard [wW]all [fF]lag.*)",
+        "flags": ["i", "m"]
+      }
+    },
+    // Targets the rest of the paintings within museum
+    {
+      "type": "texture_swapper:regex_material",
+      "name_regex": {
+        "regex": "^Museum( Painting)?( [HVS])?( \\d\\d)?( \\([iI]nstance\\))?$",
+        "flags": ["i", "m"]
+      }
+    },
+    // Targets museum wall banners
+    {
+      "type": "texture_swapper:regex_material",
+      "name_regex": {
+        "regex": "^Museum( Banner)?( \\d\\d)?( \\([iI]nstance\\))?$",
+        "flags": [
+          "i",
+          "m"
+        ]
+      }
+    }
+  ]
+}

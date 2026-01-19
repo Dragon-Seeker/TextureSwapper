@@ -11,6 +11,7 @@ using BepInEx;
 using ImageMagick;
 using io.wispforest.endec;
 using io.wispforest.endec.impl;
+using io.wispforest.textureswapper.api.core;
 using io.wispforest.textureswapper.api.query;
 using io.wispforest.textureswapper.utils;
 using UnityEngine;
@@ -26,11 +27,12 @@ public class LocalFiles {
 public class LocalMediaQuery : MediaQuery, EndecGetter<LocalMediaQuery> {
 
     public static readonly StructEndec<LocalMediaQuery> ENDEC = StructEndecBuilder.of(
-            endec.Endec.STRING.optionalFieldOf<LocalMediaQuery>("directory", query => query.directory, () => null),
-            endec.Endec.STRING.listOf().optionalFieldOf<LocalMediaQuery>("files", query => query.files, () => []),
-            MediaRatingUtils.ENDEC.optionalFieldOf<LocalMediaQuery>("rating", s => s.rating, () => MediaRating.SAFE),
-            endec.Endec.STRING.listOf().optionalFieldOf<LocalMediaQuery>("tags", s => s.tags, () => []),
-            (directory, files, rating, tags) => new LocalMediaQuery(directory, files, rating, tags)
+        Identifier.ENDEC.optionalFieldOf<LocalMediaQuery>("id", s => s.key.id, () => null),
+        endec.Endec.STRING.optionalFieldOf<LocalMediaQuery>("directory", query => query.directory, () => null),
+        endec.Endec.STRING.listOf().optionalFieldOf<LocalMediaQuery>("files", query => query.files, () => []),
+        MediaRatingUtils.ENDEC.optionalFieldOf<LocalMediaQuery>("rating", s => s.rating, () => MediaRating.SAFE),
+        endec.Endec.STRING.listOf().optionalFieldOf<LocalMediaQuery>("tags", s => s.tags, () => []),
+        (id, directory, files, rating, tags) => new LocalMediaQuery(id, directory, files, rating, tags)
     );
 
     public static Endec<LocalMediaQuery> Endec() => ENDEC;
@@ -42,28 +44,26 @@ public class LocalMediaQuery : MediaQuery, EndecGetter<LocalMediaQuery> {
 
     public bool syncedTask {get; set;}
 
-    private LocalMediaQuery(string? directory, IList<string> files, MediaRating rating, IList<string> tags) {
+    private LocalMediaQuery(Identifier id, string? directory, IList<string> files, MediaRating rating, IList<string> tags) : base(id) {
         this.directory = directory;
         this.files = files;
         this.rating = rating;
         this.tags = tags;
     }
 
-    public static LocalMediaQuery ofDirectory(string directory, MediaRating rating = MediaRating.SAFE, IList<string>? tags = null) {
-        return new LocalMediaQuery(directory, new List<string>(), rating, []);
+    public static LocalMediaQuery ofDirectory(Identifier? id, string directory, MediaRating rating = MediaRating.SAFE, IList<string>? tags = null) {
+        return new LocalMediaQuery(id, directory, new List<string>(), rating, []);
     }
     
-    public static LocalMediaQuery ofFile(string file, MediaRating rating = MediaRating.SAFE, IList<string>? tags = null) {
-        return new LocalMediaQuery(null, [file], rating, []);
+    public static LocalMediaQuery ofFile(Identifier? id, string file, MediaRating rating = MediaRating.SAFE, IList<string>? tags = null) {
+        return new LocalMediaQuery(id, null, [file], rating, []);
     }
     
-    public static LocalMediaQuery ofFiles(IEnumerable<string> files, MediaRating rating = MediaRating.SAFE, IList<string>? tags = null) {
-        return new LocalMediaQuery(null, new List<string>(files), rating, []);
+    public static LocalMediaQuery ofFiles(Identifier? id, IEnumerable<string> files, MediaRating rating = MediaRating.SAFE, IList<string>? tags = null) {
+        return new LocalMediaQuery(id, null, new List<string>(files), rating, []);
     }
 
-    public override Identifier getQueryTypeId() {
-        return LocalMediaQueryType.ID;
-    }
+    public override Identifier queryTypeId => LocalMediaQueryType.ID;
 
     public (string, IList<string>) gatherFiles() {
         if (directory != null && Directory.Exists(directory)) {
@@ -92,7 +92,9 @@ public class LocalMediaQueryType : MediaQueryType<LocalMediaQuery, LocalMediaQue
     public override void executeQuery(LocalMediaQuery data) {
         var files = data.gatherFiles();
         
-        var guid = data.guid;
+        var key = data.key;
+
+        MediaSwapperStorage.getOrCreateQueryStorage(key).query = data;
         
         foreach (var file in files.Item2) {
             if (Regex.IsMatch(file, @"(\.\.(\\|\/|$))")) {
@@ -111,11 +113,11 @@ public class LocalMediaQueryType : MediaQueryType<LocalMediaQuery, LocalMediaQue
                 MediaSwapperStorage.addIdAndTryToSetupType(file, unknownHostType: parentDir ?? "local");
                 
                 if (data.syncedTask) {
-                    loadTextureFromBytes(guid, file, files.Item1, File.ReadAllBytes(file), data.rating, data.tags, parentDir);
+                    loadTextureFromBytes(key, file, files.Item1, File.ReadAllBytes(file), data.rating, data.tags, parentDir);
                 } else {
                     MultiThreadHelper.run(createSemaphoreIdentifier(), () => File.ReadAllBytesAsync(file).ContinueWith(task => {
                         if (task.IsCompleted) {
-                            loadTextureFromBytes(guid, file, files.Item1, task.Result, data.rating, data.tags, parentDir);
+                            loadTextureFromBytes(key, file, files.Item1, task.Result, data.rating, data.tags, parentDir);
                         }
                     }));
                 }
@@ -126,42 +128,35 @@ public class LocalMediaQueryType : MediaQueryType<LocalMediaQuery, LocalMediaQue
         }
     }
     
-    private static void loadTextureFromBytes(Guid guid, string file, string origin, byte[]? bytes, MediaRating rating, IList<string> tags, string? parentDir) {
+    private static void loadTextureFromBytes(MediaQueryKey key, string file, string origin, byte[]? bytes, MediaRating rating, IList<string> tags, string? parentDir) {
         try {
             if (bytes is null) return;
             
-            var rawMedia = new RawMediaData(file, bytes, new LocalMediaQueryResult(guid, origin, rating, tags), unknownHostType: parentDir ?? "local");
+            var rawMedia = new RawMediaData(file, bytes, new LocalMediaQueryResult(origin, rating, tags), unknownHostType: parentDir ?? "local");
 
-            MediaSwapperStorage.storeRawMediaData(rawMedia);
+            MediaSwapperStorage.storeRawMediaData(key, rawMedia);
         } catch(Exception e) {
             Plugin.logIfDebugging(source => source.LogError($"Unable to read local image from {file}: {e.Message}"));
         }
     }
 }
 
-public class LocalMediaQueryResult : MediaQueryResult, EndecGetter<LocalMediaQueryResult>, RatedMediaResult, TaggedMediaResult {
+public class LocalMediaQueryResult(string origin, MediaRating rating, IList<string> tags)
+    : MediaQueryResult, EndecGetter<LocalMediaQueryResult>, RatedMediaResult, TaggedMediaResult {
     public static readonly StructEndec<LocalMediaQueryResult> ENDEC = StructEndecBuilder.of(
-            endec.Endec.STRING.fieldOf<LocalMediaQueryResult>("origin", s => s.origin),
-            MediaRatingUtils.ENDEC.fieldOf<LocalMediaQueryResult>("rating", s => s.rating),
-            endec.Endec.STRING.listOf().fieldOf<LocalMediaQueryResult>("tags", s => s.tags),
-            (info, rating, tags) => new LocalMediaQueryResult(MediaQueryResult.NETWORKED_GUID, info, rating, tags)
+        endec.Endec.STRING.fieldOf<LocalMediaQueryResult>("origin", s => s.origin),
+        MediaRatingUtils.ENDEC.fieldOf<LocalMediaQueryResult>("rating", s => s.rating),
+        endec.Endec.STRING.listOf().fieldOf<LocalMediaQueryResult>("tags", s => s.tags),
+        (info, rating, tags) => new LocalMediaQueryResult(info, rating, tags)
     );
     
-    public string origin { get; }
-    public MediaRating rating { get; }
-    public IList<string> tags { get; }
-
-    public LocalMediaQueryResult(Guid guid, string origin, MediaRating rating, IList<string> tags) : base(guid){
-        this.origin = origin;
-        this.rating = rating;
-        this.tags = tags;
-    }
+    public string origin { get; } = origin;
+    public MediaRating rating { get; } = rating;
+    public IList<string> tags { get; } = tags;
 
     public static Endec<LocalMediaQueryResult> Endec() => ENDEC;
 
-    public override Identifier getQueryTypeId() => LocalMediaQueryType.ID;
-
-    public MediaRating getRating() => rating;
+    public override Identifier queryTypeId => LocalMediaQueryType.ID;
 
     public bool hasTag(string tag) => tags.Contains(tag);
     

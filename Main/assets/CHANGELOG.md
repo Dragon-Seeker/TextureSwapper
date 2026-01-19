@@ -1,3 +1,13 @@
+# v1.2.0
+- Splitting the project to attempt to deal with issues of uploading on ThunderStore
+- Properly setting up endec
+- Rework API to be more convenient for others to use within the future
+- Removing unneeded files
+- Fixing issues with the latest release of the game
+- Add tooltip info combined with dump commands, keybinds, and more
+- Rename config values
+- Adjust some settings to be user based to allow for more control when using modpacks
+
 # v1.1.7
 - Make Local rating optional in data format
 - Update method on getting extension information from URL if unable to query data though URL using head

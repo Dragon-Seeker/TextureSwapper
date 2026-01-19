@@ -1,6 +1,7 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.Linq;
+using io.wispforest.textureswapper.api.core;
 using io.wispforest.textureswapper.utils;
 using Unity.VisualScripting;
 using UnityEngine;
@@ -112,7 +113,11 @@ public class SwapperHandlerHolder : MonoBehaviour {
 
 public static class GameObjectExtension {
     public static void setSwapperHolder(this GameObject gameObject, MeshRenderer mesh, int i, Material material, Action<Material> setAction, MeshSwapper? handler) {
-        if (gameObject is null) return;
+        if (gameObject == null) {
+            Plugin.logIfDebugging((logger) => logger.LogError($"GameObject was found to garbage collected and handling won't occur because of such!"));
+            
+            return;
+        }
 
         if (handler is not null) {
             Plugin.logIfDebugging(() => $"Handler {handler.id()} was found to be in the state {MediaSwapperStorage.getMediaState(handler.id())}");

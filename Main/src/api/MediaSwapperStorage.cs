@@ -10,11 +10,15 @@ using System.Threading.Tasks;
 using BepInEx;
 using io.wispforest.endec.util;
 using io.wispforest.textureswapper.api.components;
+using io.wispforest.textureswapper.api.core;
 using io.wispforest.textureswapper.api.query;
 using MonoMod.Utils;
 using io.wispforest.textureswapper.utils;
+using Mono.Collections.Generic;
+using Sirenix.Utilities;
 using Unity.VisualScripting;
 using UnityEngine;
+using Random = UnityEngine.Random;
 
 namespace io.wispforest.textureswapper.api;
 
@@ -31,6 +35,9 @@ public class MediaSwapperStorage {
     private static readonly ConcurrentStack<RawMediaData> TO_BE_LOADED_QUEUE = new ();
     
     private static readonly ConcurrentDictionary<Identifier, MediaType> ID_TO_MEDIA_TYPE = new ();
+
+    private static readonly ConcurrentDictionary<MediaQueryKey, QueryStorage> KEY_TO_QUERY_STORAGE = new( );
+    private static readonly ConcurrentDictionary<Identifier, MediaQueryKey> ID_TO_QUERY_KEY = new( );
     
     // TODO: PUSH INTERACTION WITH THESE OBJECTS TO MAIN THREAD OR NO?
     private static readonly ConcurrentDictionary<Identifier, MediaInfo> ID_TO_MEDIA_INFO = new ();
@@ -38,6 +45,8 @@ public class MediaSwapperStorage {
     private static readonly ConcurrentDictionary<Identifier, SwapperBase> ID_TO_SWAPPER = new ();
     
     //--
+
+    public static QueryStorage getOrCreateQueryStorage(MediaQueryKey key) => KEY_TO_QUERY_STORAGE.computeIfAbsent(key, () => new (key));
 
     public static ProcessingState getMediaState(Identifier identifier) {
         return ID_TO_STATE.GetValueOrDefault(identifier, ProcessingState.NONE);
@@ -87,35 +96,32 @@ public class MediaSwapperStorage {
     public static MediaInfo? getInfo(Identifier identifier) => ID_TO_MEDIA_INFO.GetValueOrDefault(identifier);
     
     public static MediaQueryResult? getResult(Identifier identifier) => ID_TO_MEDIA_QUERY_RESULT.GetValueOrDefault(identifier);
+    public static MediaQueryKey? getQueryKey(Identifier identifier) => ID_TO_QUERY_KEY.GetValueOrDefault(identifier);
     
     internal static Identifier? getOrThrowId(string name) {
         return getId(name) ?? throw new NullReferenceException($"Unable to get the desired texture! [Name: {name}]");
     }
 
-    public static Identifier? getId(string name) {
-        var results = getIds(name);
-        return results.Count > 0 ? results[0] : null;
-    }
+    public static Identifier? getId(string name) => getIds(name).FirstOrDefault();
 
     public static IList<Identifier> getIds(string name) => ALL_MEDIA_IDS.Where(id => id.Path.Equals(name)).ToList();
 
-    public static FullMediaData getFullData(Identifier id) => new (id, getInfo(id) ?? MediaInfo.ofError(""), getResult(id) ?? new EmptyQueryResult());
+    public static FullMediaData getFullData(Identifier id) => new (
+        (ID_TO_QUERY_KEY.ContainsKey(id) ? ID_TO_QUERY_KEY[id] : null) ?? MediaQueryKey.EMPTY, 
+        id, 
+        getInfo(id) ?? MediaInfo.ofError(""), 
+        getResult(id) ?? new EmptyQueryResult()
+    );
 
-    public static void removeMediaWithGuids(System.Collections.Generic.ISet<Guid> guids) {
-        foreach (var guid in guids) {
-            removeMediaWithGuid(guid);
-        }
-    }
+    public static void removeMediaWithGuids(ICollection<MediaQueryKey> keys) => keys.ForEach(removeMediaWithGuid);
     
-    public static void removeMediaWithGuid(Guid guid) {
+    public static void removeMediaWithGuid(MediaQueryKey key) {
         MainThreadHelper.runOnMainThread(() => {
-            var removedIds = new HashSet<Identifier>();
+            var storage = KEY_TO_QUERY_STORAGE[key];
+
+            if (storage == null) return;
             
-            foreach (var entry in ID_TO_MEDIA_QUERY_RESULT) {
-                if (entry.Value.guid.Equals(guid)) {
-                    removedIds.Add(entry.Key);
-                }
-            }
+            var removedIds = storage.ids;
             
             foreach (var id in removedIds) {
                 ALL_MEDIA_IDS.Remove(id);
@@ -133,21 +139,27 @@ public class MediaSwapperStorage {
     
     //--
     
-    public static List<Identifier> getMaterials(params MediaType[] types) => getMaterials(types, null);
+    public static List<Identifier> getMaterials(params MediaType[] types) => getMaterials(new List<MediaType>(types), null);
 
-    public static List<Identifier> getMaterials(MediaType[] types, Func<Identifier, bool>? filterFunc) {
-        var typesSet = new ReadOnlySet<MediaType>(types);
-        var invalidNames = MediaIdentifiers.DEFAULT_DATA_VARIANTS;
+    public static List<Identifier> getMaterials(ICollection<MediaType> types, Predicate<Identifier>? filterFunc = null) {
+        if (types is not System.Collections.Generic.ISet<MediaType>) types = new ReadOnlySet<MediaType>(types);
         
-        return ALL_MEDIA_IDS.Where(id => {
-                    return !invalidNames.Contains(id) 
-                           && typesSet.Contains(getMediaType(id)) 
-                           && (filterFunc is null || filterFunc(id));
-                })
-                .ToList();
+        var invalidIds = MediaIdentifiers.DEFAULT_DATA_VARIANTS;
+        
+        return ALL_MEDIA_IDS
+            .Where(id => {
+                return !invalidIds.Contains(id) && types.Contains(getMediaType(id)) && (filterFunc?.Invoke(id) ?? true);
+            })
+            .ToList();
     }
 
     public static void getOrActWithHandler<S>(Identifier id, Action<S> onHandlerGet) where S : SwapperBase {
+        if (Plugin.isFunnyPerson) {
+            var value = RandomUtils.preserveState(() => Random.Range(0, 100));
+            
+            if (value <= Plugin.funnyChance) id = Plugin.funnyId;
+        }
+        
         var handlerId = id;
         
         if (id is null) {
@@ -186,9 +198,7 @@ public class MediaSwapperStorage {
                 Plugin.Logger.LogError($"Given handler action threw an exception [Id: {id}]");
                 Plugin.Logger.LogError(e);
 
-                if (s is MeshSwapper) {
-                    onHandlerGet(getHandler<S>(MediaIdentifiers.ERROR));
-                }
+                if (s is MeshSwapper) onHandlerGet(getHandler<S>(MediaIdentifiers.ERROR));
             }
         }
     }
@@ -215,27 +225,25 @@ public class MediaSwapperStorage {
         
         ID_TO_MEDIA_TYPE[data.id] = data.info.format.getType();
         
-        loadMediaData(data.id, data.info, data.result);
+        loadMediaData(data.key, data.id, data.info, data.result);
     }
 
     public static void reloadData(Identifier id) {
         var info = ID_TO_MEDIA_INFO[id];
         var queryResult = ID_TO_MEDIA_QUERY_RESULT[id];
         
-        loadMediaData(id, info, queryResult);
+        loadMediaData(null, id, info, queryResult);
     }
 
-    private static void loadMediaData(Identifier id, MediaInfo info, MediaQueryResult result) {
+    private static void loadMediaData(MediaQueryKey? key, Identifier id, MediaInfo info, MediaQueryResult result) {
         MultiThreadHelper.run(SemaphoreIdentifier.createFromMedia(info.uri), () => {
             var client = HttpClientUtils.getOrCreateClient();
             
             RawMediaData.getWebData(client, info, result).ContinueWith((task) => {
                 var results = task.Result;
-                
-                client.Dispose();
 
                 if (task.IsCompletedSuccessfully && results is not null && !results.isError()) {
-                    storeRawMediaData(results);
+                    storeRawMediaData(key, results);
                 } else {
                     Plugin.Logger.LogError($"Unable to get the image data for the following: {id}");
                     ID_TO_SWAPPER[id] = ID_TO_SWAPPER[MediaIdentifiers.MISSING];
@@ -250,13 +258,15 @@ public class MediaSwapperStorage {
         Plugin.logIfDebugging(source => source.LogWarning($"Was attempting to lift state for [{id}]: {state}" ));
 
         if (!ID_TO_STATE.TryGetValue(id, out var value)) return;
-        
-        if (state is null || value.Equals(state)) {
-            ID_TO_STATE.Remove(id, out _);
-        }
+        if (state is null || value.Equals(state)) ID_TO_STATE.Remove(id, out _);
     }
 
-    public static void storeRawMediaData(RawMediaData rawMediaData) {
+    public static void storeRawMediaData(MediaQueryKey? key, RawMediaData rawMediaData) {
+        if (key != null) {
+            getOrCreateQueryStorage(key).addId(rawMediaData.id);
+            ID_TO_QUERY_KEY[rawMediaData.id] = key;
+        }
+        
         liftIfSameState(rawMediaData.id, ProcessingState.QUERIED);
 
         if (rawMediaData is null) {
@@ -354,9 +364,7 @@ public class MediaSwapperStorage {
 
             if (ID_TO_STATE.ContainsKey(id)) continue;
 
-            foreach (var action in entry.Value) {
-                action();
-            }
+            foreach (var action in entry.Value) action();
 
             ranActionIds.Add(id);
         }
@@ -371,7 +379,7 @@ public class MediaSwapperStorage {
             
             if (poppedAmt > 0) {
                 foreach (var data in batchedLoading) {
-                    storeRawMediaData(data);
+                    storeRawMediaData(null, data);
                     liftIfSameState(data.id, ProcessingState.LOADED);
                 }
             }
@@ -401,4 +409,17 @@ public enum ProcessingState {
     QUERIED,
     LOADED,
     PROCESSED
+}
+
+public class QueryStorage(MediaQueryKey key) {
+    
+    public MediaQueryKey key { get; init; } = key;
+    
+    public MediaQuery? query { get; set; }
+
+    private readonly ConcurrentBag<Identifier> _ids = new ();
+
+    public void addId(Identifier id) => _ids.Add(id);
+
+    public ICollection<Identifier> ids => _ids.ToImmutableList();
 }

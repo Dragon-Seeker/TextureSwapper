@@ -213,7 +213,7 @@ public record MediaInfo : EndecGetter<MediaInfo> {
             
             var type = MediaFormats.getAFormat(mediaInfo.Format.FormatName.Split(","));
             
-            Plugin.logIfDebugging(source => source.LogError($"Type: {type}, Name: {mediaInfo.Format.FormatName}"));
+            //Plugin.logIfDebugging(source => source.LogError($"Type: {type}, Name: {mediaInfo.Format.FormatName}"));
         
             var videoCodec = hasVideo ? videoInfo.CodecName : "";
             

@@ -14,19 +14,25 @@ using FFMpegCore;
 using FFMpegCore.Enums;
 using HarmonyLib.Tools;
 using ImageMagick;
+using io.wispforest.endec;
 using io.wispforest.endec.format.newtonsoft;
 using io.wispforest.endec.impl;
 using io.wispforest.endec.impl;
 using io.wispforest.textureswapper.api;
+using io.wispforest.textureswapper.api.components;
 using io.wispforest.textureswapper.api.components.holders;
+using io.wispforest.textureswapper.api.core;
 using io.wispforest.textureswapper.api.query;
 using io.wispforest.textureswapper.api.query.impl;
+using io.wispforest.textureswapper.api.target;
 using io.wispforest.textureswapper.api.tooltip;
 using io.wispforest.textureswapper.patches;
 using io.wispforest.textureswapper.patches.ui;
 using io.wispforest.textureswapper.utils;
 using KeybindLib.Classes;
 using REPOLib.Modules;
+using Sirenix.Utilities;
+using Steamworks;
 using UnityEngine.SceneManagement;
 
 namespace io.wispforest.textureswapper;
@@ -35,6 +41,14 @@ namespace io.wispforest.textureswapper;
 [BepInDependency("bulletbot.keybindlib")]
 [BepInPlugin(SwapperPluginInfo.PLUGIN_GUID, SwapperPluginInfo.PLUGIN_NAME, SwapperPluginInfo.PLUGIN_VERSION)]
 public class Plugin : BaseUnityPlugin {
+   
+   internal static string id = "texture_swapper";
+   
+   internal static string baseFolder => id;
+
+   internal static string queriesFolder => "queries";
+   internal static string targetsFolder => "targets";
+   
    internal static readonly List<string> RAW_NAMES = ["texture_swapper_queries", "painting_swapper_images", "RandomPaintingSwap_Images", "CustomPaintings"];
    
    private static Plugin? _INSTANCE = null;
@@ -48,8 +62,6 @@ public class Plugin : BaseUnityPlugin {
    internal static Plugin Instance => getOrThrow(_INSTANCE, $"{SwapperPluginInfo.PLUGIN_NAME} _instance");
    internal static new ManualLogSource Logger => getOrThrow(_LOGGER, $"{SwapperPluginInfo.PLUGIN_NAME} _logger");
    internal static ConfigInstance config => getOrThrow(_CONFIG_ACCESS, $"{SwapperPluginInfo.PLUGIN_NAME} _config_access");
-
-   internal static string id = "texture_swapper";
 
    internal static ActiveSwapperStats? prevHolder { get; set; } = null;
 
@@ -65,11 +77,11 @@ public class Plugin : BaseUnityPlugin {
       throw new NullReferenceException($"Unable to get {fieldName} as it has not been initialized yet.");
    }
 
-   public static void logIfDebugging(Action<ManualLogSource> logAction, Func<bool>? predicate = null) {
+   public static void logIfDebugging(Action<ManualLogSource> logAction, Getter<bool>? predicate = null) {
       if (config.enableDebugLogging() && (predicate?.Invoke() ?? true)) logAction(Logger);
    }
 
-   public static void logIfDebugging(Func<String> message, Func<bool>? predicate = null) {
+   public static void logIfDebugging(Getter<string> message, Getter<bool>? predicate = null) {
       if (config.enableDebugLogging() && (predicate?.Invoke() ?? true)) Logger.LogInfo(message());
    }
 
@@ -77,6 +89,10 @@ public class Plugin : BaseUnityPlugin {
       return Thread.CurrentThread == _MAIN_THREAD;
    }
 
+   private static MonoEvent _EVENTS;
+   
+   internal static MonoEvent Events => getOrThrow(_EVENTS, $"{SwapperPluginInfo.PLUGIN_NAME} _instance");
+   
    /**
     * Init Plugin
     */
@@ -101,6 +117,14 @@ public class Plugin : BaseUnityPlugin {
       _LOGGER = base.Logger;
 
       _INSTANCE = this;
+      
+      var obj = new GameObject("TextureSwapperEventHolder");
+      obj.hideFlags = HideFlags.HideAndDontSave;
+      DontDestroyOnLoad(obj);
+      
+      _EVENTS = obj.AddComponent<MonoEvent>();
+
+      Events.onUpdateCallback += _ => onUpdate();
 
       // Setup config access for later
       _CONFIG_ACCESS = new ConfigInstance(this, Config);
@@ -112,10 +136,7 @@ public class Plugin : BaseUnityPlugin {
       FileUtils.deleteOldFiles(TempStoragePath, 2);
 
       string pluginFolder = Path.GetDirectoryName(Assembly.GetExecutingAssembly().Location)!;
-
-      // Prevent object from being garbage collected
-      gameObject.hideFlags = HideFlags.HideAndDontSave;
-
+      
       // Setup value for what is the main thread for later ability
       // to sync code calls that do not like async
       _MAIN_THREAD ??= Thread.CurrentThread;
@@ -136,30 +157,34 @@ public class Plugin : BaseUnityPlugin {
       if (Chainloader.PluginInfos.ContainsKey("bulletbot.keybindlib")) _harmony.PatchAll(typeof(KeybindsPatch));
       
       // Just incase to make sure Photon Endec compat is loaded
-      PhotonEndecAddon.init();
+      PhotonUnityEndecAddon.init(tuple => {
+         if (tuple.addedProperly) {
+            Logger.LogWarning(tuple.message);
+         } else {
+            Logger.LogError(tuple.message);
+         }
+      });
 
       // Hook into Wrapper Prefab pool so we can manipulate game objects after instantiation
       PrefabInstantiationEvent.onPrefabInstantiation += (gameObject, _, _, _) => SwapperComponentSetupUtils.commonSide(gameObject);
       
-      ObjectInstantiateEvent.onObjectInstantiation += (o, position, rotation) => {
-         if (o is GameObject go) {
-            if (!SemiFunc.IsMultiplayer() && hasLoadedQueries) {
-               SwapperComponentSetupUtils.commonSide(go);
-            }
-            
-            var renderers = go.GetComponentsInChildren<MeshRenderer>();
+      // ObjectInstantiateEvent.onObjectInstantiation += (o, position, rotation) => {
+      //    if (o is GameObject go) {
+      //       if (!SemiFunc.IsMultiplayer() && hasLoadedQueries) {
+      //          SwapperComponentSetupUtils.commonSide(go);
+      //       }
+      //       
+      //       var renderers = go.GetComponentsInChildren<MeshRenderer>();
+      //
+      //       if (renderers == null) return;
+      //       
+      //       MeshRendererCache.getOrCreate().addRenderers(new List<MeshRenderer>(renderers));
+      //    } else if (o is MeshRenderer meshRenderer) {
+      //       MeshRendererCache.getOrCreate().addRenderer(meshRenderer);
+      //    }
+      // };
 
-            if (renderers == null) return;
-            
-            MeshRendererCache.getOrCreate().addRenderers(new List<MeshRenderer>(renderers));
-         } else if (o is MeshRenderer meshRenderer) {
-            MeshRendererCache.getOrCreate().addRenderer(meshRenderer);
-         }
-      };
-
-      SceneManager.sceneLoaded += (arg0, mode) => {
-         MeshRendererCache.getOrCreate().getRenderers(refreshRenderers: true);
-      };
+      SceneManager.sceneLoaded += (_, _) => MeshRendererCache.getOrCreate().getRenderers(refreshRenderers: true);
 
       LevelEvents.ON_CHANGE += this.handleDynamicQueries;
       
@@ -179,87 +204,165 @@ public class Plugin : BaseUnityPlugin {
       Logger.LogInfo($"Plugin {SwapperPluginInfo.PLUGIN_NAME} loaded Successfully!");
    }
 
+   private static bool? _IS_FUNNY_PERSON;
+   
+   public static bool isFunnyPerson  {
+      get {
+         if (!config.funny()) return false;
+         
+         if (_IS_FUNNY_PERSON == null) {
+            if (SteamClient.IsValid) {
+               _IS_FUNNY_PERSON = SteamClient.SteamId.Value == 76561198385078416;
+         
+               Logger.LogInfo($"Current User SteamID: {SteamClient.SteamId.Value}");
+            }
+         }
+
+         return _IS_FUNNY_PERSON ?? false;
+      }
+   }
+
    public static Keybind refreshClientData { get; private set; }
    
    public delegate void AdditionalQueryLookup(Action<Identifier, IList<MediaQuery>> addCallback);
 
    public static event AdditionalQueryLookup ADDITIONAL_QUERY_LOOKUP;
 
-   private List<string> directoriesToBeLoaded = [];
+   private static readonly List<string> validSwapperDataDirectories = [];
+   private static readonly List<string> validQueryDataDirectories = [];
 
+   private static readonly Dictionary<Identifier, List<TargetInstance>> swapperTargets = [];
+
+   private static IList<TargetInstance>? mergedInstances;
+
+   internal static IList<TargetInstance> getSwapperTargets() {
+      return mergedInstances ??= swapperTargets.Values.SelectMany(ids => ids).ToImmutableList();
+   }
+   
    public void Start() {
-      string pluginFolder = Path.GetDirectoryName(Assembly.GetExecutingAssembly().Location)!;
+      var pluginFolder = Path.GetDirectoryName(Assembly.GetExecutingAssembly().Location)!;
 
       Logger.LogInfo($"Plugin {SwapperPluginInfo.PLUGIN_NAME} starting!");
+      
+      // -- Load Legacy folders and then add them to query path
+      {
+         List<string> directories = [];
+         
+         directories.AddRange(config.directoryLocations());
+         directories.Add(Path.Combine(Paths.ConfigPath, "texture_swapper_queries"));
 
-      // -- General Creation of Local Directories to search
+         // --- Look into Other plugins folders for images
+         directories.AddRange(
+            Directory.GetDirectories(Path.GetDirectoryName(pluginFolder)!)
+               .SelectMany(directory => RAW_NAMES.Select(s => Path.Combine(directory, s)))
+         );
 
-      var directories = new List<String>();
-
-      // --- Create Directories for the base plugin combined with any other possible location
-      directories.Add(Path.Combine(pluginFolder, RAW_NAMES[0]));
-      directories.AddRange(config.directoryLocations());
-      directories.Add(Path.Combine(Paths.ConfigPath, "texture_swapper_queries"));
-
-      foreach (var directory in directories) {
-         try {
-            if (!Directory.Exists(directory)) {
-               Directory.CreateDirectory(directory);
-               logIfDebugging(source => source.LogInfo($"Folder {directory} created successfully!"));
-            }
-            else {
-               logIfDebugging(source => source.LogInfo($"Folder {directory} detected!)"));
-            }
-         }
-         catch (Exception e) {
-            logIfDebugging(source => {
-               source.LogError($"Unable to create directory [{directory}]:");
-               source.LogError(e);
-            });
-         }
+         validQueryDataDirectories.AddRange(directories.Where(Directory.Exists));
       }
+      
+      // -- Load base data folders
+      {
+         List<string> directories = [];
+         
+         directories.AddRange(config.directoryLocations().Select(s => Path.Combine(s, baseFolder)));
+         directories.Add(Path.Combine(Paths.ConfigPath, baseFolder));
 
-      // --- Look into Other plugins folders for images
-      string pluginsFolder = Path.GetDirectoryName(pluginFolder);
+         // --- Look into Other plugins folders for images
+         directories.AddRange(
+            Directory.GetDirectories(Path.GetDirectoryName(pluginFolder)!)
+               .Select(directory => Path.Combine(directory, baseFolder))
+         );
+         
+         validSwapperDataDirectories.AddRange(directories.Select(s => {
+            try {
+               if (Directory.Exists(s)) Directory.CreateDirectory(s);
+            } catch (Exception e) { }
 
-      foreach (var directory in Directory.GetDirectories(pluginsFolder)) {
-         foreach (var rawName in RAW_NAMES) {
-            var possibleImageDirectory = Path.Combine(directory, rawName);
-
-            if (Directory.Exists(directory)) {
-               directories.Add(possibleImageDirectory);
-            }
-         }
+            return s;
+         }));
       }
-
-      directoriesToBeLoaded = directories;
-
-      hasLoadedQueries = false;
+      
+      setupDataAndDirectories();
+      
+      //--
+      
+      if (config.funny()) {
+         ADDITIONAL_QUERY_LOOKUP += callback => callback(StaticWebQueryType.ID, [StaticWebQuery.of(Identifier.of(id, "very_funny_mode_image"), ["https://i.imgur.com/0GTrjm7.jpeg"])]);
+      }
       
       // --
       
       Logger.LogInfo($"Plugin {SwapperPluginInfo.PLUGIN_NAME} started Successfully!");
    }
 
-   private bool hasLoadedQueries = false;
+   internal void setupDataAndDirectories(bool handleFolderCreation = true) {
+      swapperTargets.Clear();
+      
+      foreach (var directory in validSwapperDataDirectories) {
+         var targetDir = Path.Combine(directory, targetsFolder);
+         
+         if (handleFolderCreation) {
+            var queryDir = Path.Combine(directory, queriesFolder);
+
+            try {
+               if (!Directory.Exists(queryDir)) Directory.CreateDirectory(queryDir);
+            } catch (Exception e) { }
+         
+            validQueryDataDirectories.Add(queryDir);
+         
+            try {
+               if (!Directory.Exists(targetDir)) Directory.CreateDirectory(targetDir);
+            } catch (Exception e) { }
+         }
+         
+         if (!Directory.Exists(targetDir)) continue;
+         
+         var jsonFiles = Directory.GetFiles(targetDir, "*.json");
+         
+         foreach (var jsonFile in jsonFiles) {
+            try {
+               var targetInstances = JsonUtils.parseFromFile(jsonFile, TargetInstancePack.ENDEC);
+
+               if (targetInstances == null) continue;
+                  
+               swapperTargets.computeIfAbsent(targetInstances.id, () => [])
+                  .AddRange(targetInstances.instances);
+            } catch (Exception e) {
+               Logger.LogError($"Unable to parse the given file [{jsonFile}] as TargetInstances: {e}");
+            }
+         }
+      }
+      
+      mergedInstances = null;
+   }
+
+   internal static Identifier funnyId = Identifier.ofUri("https://i.imgur.com/0GTrjm7.jpeg");
+
+   private bool hasLoadedQueries;
 
    private readonly Dictionary<Identifier, IList<MediaQuery>> dynamicTypeToQueries = new();
 
+   public static readonly LevelPredicate VALID_PREDICATE = LevelUtils.of(
+      Operation.NONE, 
+      m => m.levelMainMenu, 
+      m => m.levelSplashScreen, 
+      m => m.levelTutorial
+   );
+   
    // TODO: DOSE NOT WORK IN SINGLE PLAYER FOR SOME FUCKING REASON GOD DAM IT
    internal void loadQueries(string? levelName = null) {
       if (hasLoadedQueries) return;
 
       if (levelName != null) {
-         var manager = RunManager.instance;
-
-         var isInvalidLevel = levelName.Equals(manager.levelMainMenu.name) 
-                              || levelName.Equals(manager.levelSplashScreen.name)
-                              || levelName.Equals(manager.levelTutorial.name);
-
-         if (isInvalidLevel) return;
+         RunManager? manager = RunManager.instance;
+         var level = (manager?.levels ?? []).FirstOrDefault(level => level.name == levelName);
+      
+         if (level == null || !VALID_PREDICATE(manager!, level)) return;
       }
 
       Logger.LogInfo($"Attempting Texture Swapper Loading!");
+      
+      //--
 
       var typeToQueries = new Dictionary<Identifier, IList<MediaQuery>>();
 
@@ -269,11 +372,11 @@ public class Plugin : BaseUnityPlugin {
             MediaQueryTypeRegistry.GROUPED_QUERY_DATA.optionalFieldOf<QueryEntries>("query_entries", pair => pair.queries, () => new Dictionary<Identifier, IList<MediaQuery>>()),
             MediaQueryTypeRegistry.GROUPED_QUERY_DATA.optionalFieldOf<QueryEntries>("dynamic_query_entries", pair => pair.queries, () => new Dictionary<Identifier, IList<MediaQuery>>()),
             (queries, dynamicQueries) => new QueryEntries(queries, dynamicQueries));
-
+      
       Task.Run(() => {
-         foreach (var directory in directoriesToBeLoaded) {
+         foreach (var directory in validQueryDataDirectories) {
             try {
-               typeToQueries.computeIfAbsent(LocalMediaQueryType.ID, _ => []).Add(LocalMediaQuery.ofDirectory(directory));
+               typeToQueries.computeIfAbsent(LocalMediaQueryType.ID, _ => []).Add(LocalMediaQuery.ofDirectory(null, directory));
             }
             catch (Exception e) {
                Logger.LogError($"Unable to query local directory: {e}");
@@ -300,7 +403,7 @@ public class Plugin : BaseUnityPlugin {
 
          //MultiThreadHelper.run(() => { while (true) { } });
          
-         runQueries("alternative_censor_images", UserSettings.data().alternativeCensorImages);
+         runQueries("alternative_censor_images", UserSettings.data.alternativeCensorImages);
          runQueries("static_queries", typeToQueries);
          runQueries("dynamic_queries", dynamicTypeToQueries);
       });
@@ -311,21 +414,24 @@ public class Plugin : BaseUnityPlugin {
    }
 
    private int pastLevelsCompleted = 0;
-   private ISet<Guid> oldDynamicQueries = new HashSet<Guid>();
+   private ISet<MediaQueryKey> oldDynamicQueries = new HashSet<MediaQueryKey>();
    private bool mustLoadQueriesFirst = true;
-
+   
+   internal static int funnyChance = 3;
+   
    private void handleDynamicQueries(int levelsCompleted, string level) {
       int maxLevelWait = config.dynamicQueriesLevelCount();
 
+      funnyChance = Math.Min(100, funnyChance * 2);
+
       if (levelsCompleted == 0) {
-         foreach (var guid in oldDynamicQueries) {
-            MediaSwapperStorage.removeMediaWithGuid(guid);
+         foreach (var key in oldDynamicQueries) {
+            MediaSwapperStorage.removeMediaWithGuid(key);
          }
 
          oldDynamicQueries.Clear();
 
-      }
-      else {
+      } else {
          var levelDifference = levelsCompleted - pastLevelsCompleted;
 
          if (levelDifference >= maxLevelWait - 1 && mustLoadQueriesFirst) {
@@ -333,17 +439,16 @@ public class Plugin : BaseUnityPlugin {
 
             dynamicTypeToQueries.forEach((identifier, list) => {
                newDynamicTypeToQueries[identifier] = list.Select(query => {
-                  oldDynamicQueries.Add(query.guid);
+                  oldDynamicQueries.Add(query.key);
 
-                  return query.createFrom();
+                  return query.copy();
                }).ToList();
             });
 
             runQueries("dynamic_queries", newDynamicTypeToQueries);
 
             mustLoadQueriesFirst = false;
-         }
-         else if (levelDifference >= maxLevelWait) {
+         } else if (levelDifference >= maxLevelWait) {
             MediaSwapperStorage.removeMediaWithGuids(oldDynamicQueries);
 
             oldDynamicQueries.Clear();
@@ -379,7 +484,7 @@ public class Plugin : BaseUnityPlugin {
       });
    }
 
-   private void Update() {
+   private void onUpdate() {
       MediaSwapperStorage.handleToBeStoredHandlers();
       MainThreadHelper.handleActionsOnMainThread();
       ImageSequenceHolder.actIfPresent(holder => holder.checkIfMaterialsLoaded());
@@ -388,6 +493,8 @@ public class Plugin : BaseUnityPlugin {
       BasicTooltipInfo.update();
 
       if (SemiFunc.InputDown(refreshClientData.inputKey)) {
+         setupDataAndDirectories(false);
+         
          config.reloadPrimaryConfig();
          
          var rootObjects =  SceneManager.GetActiveScene().GetRootGameObjects();
@@ -409,4 +516,16 @@ public class Plugin : BaseUnityPlugin {
 public class QueryEntries(IDictionary<Identifier, IList<MediaQuery>> queries, IDictionary<Identifier, IList<MediaQuery>> dynamicQueries) {
    public IDictionary<Identifier, IList<MediaQuery>> queries { get; } = queries;
    public IDictionary<Identifier, IList<MediaQuery>> dynamicQueries { get; } = dynamicQueries;
+}
+
+public class TargetInstancePack(Identifier id, IList<TargetInstance> instances) {
+   
+   public static readonly Endec<TargetInstancePack> ENDEC = StructEndecBuilder.of(
+      Identifier.ENDEC.fieldOf<TargetInstancePack>("id", s => s.id),
+      TargetInstance.ENDEC.listOf().fieldOf<TargetInstancePack>("targets", s => s.instances),
+      (id, list) => new (id, list)
+   );
+   
+   public Identifier id { get; } = id;
+   public IList<TargetInstance> instances { get; } = instances;
 }

@@ -8,6 +8,7 @@ using FFMpegCore.Pipes;
 using ImageMagick;
 using ImageMagick.Formats;
 using ImageMagick.ImageOptimizers;
+using io.wispforest.textureswapper.api.core;
 using UnityEngine;
 
 namespace io.wispforest.textureswapper.utils;

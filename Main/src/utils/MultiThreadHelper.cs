@@ -6,6 +6,7 @@ using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
 using io.wispforest.textureswapper.api;
+using io.wispforest.textureswapper.api.core;
 using io.wispforest.textureswapper.api.query;
 using UnityEngine;
 
@@ -15,40 +16,40 @@ public class MultiThreadHelper {
 
     private static bool shouldPrintDebugInfo() => false;
 
-    public static readonly SemaphoreIdentifier DEFAULT_GROUP = new SemaphoreIdentifier(
+    public static readonly SemaphoreIdentifier DEFAULT_GROUP = new (
             Identifier.of("texture_swapper", "default"), 
             maxCount: 1
     );
     
-    public static readonly MultiThreadHelper INSTANCE = new (1);
+    public static readonly MultiThreadHelper INSTANCE = new ();
 
     private readonly Dictionary<SemaphoreIdentifier, SemaphoreSlim> ID_TO_SEMAPHORE = new ();
     private readonly ConcurrentDictionary<SemaphoreIdentifier, ConcurrentDictionary<Guid, TaskState>> ID_TO_CURRENT_TASKS = new();
 
-    public MultiThreadHelper(int defaultMaxConcurrency) {
-        ID_TO_SEMAPHORE[DEFAULT_GROUP] = new SemaphoreSlim(defaultMaxConcurrency, defaultMaxConcurrency);
+    private MultiThreadHelper() {
+        ID_TO_SEMAPHORE[DEFAULT_GROUP] = DEFAULT_GROUP.createOrGetSemaphore();
     }
 
-    public static Task run(Action action) {
-        return run(DEFAULT_GROUP, action);
-    }
-
+    public static Task run(Action action) => run(DEFAULT_GROUP, action);
+    
     public static Task run(SemaphoreIdentifier id, Action action) {
-        return INSTANCE.runAndExecuteAsync(id, action);
+        return INSTANCE.runAndExecuteAsync(id, () => {
+            action();
+            
+            return Task.CompletedTask;
+        });
     }
+    
+    public static Task run(SemaphoreIdentifier id, Func<Task> func) => INSTANCE.runAndExecuteAsync(id, func);
 
-    public Task runAndExecuteAsync(SemaphoreIdentifier id, Action action) {
-        var semaphore = ID_TO_SEMAPHORE.computeIfAbsent(id, id1 => id1.createSemaphore());
+    public Task runAndExecuteAsync(SemaphoreIdentifier id, Func<Task> func) {
+        var semaphore = ID_TO_SEMAPHORE.computeIfAbsent(id, id1 => id1.createOrGetSemaphore());
         var guid = Guid.NewGuid();
 
         var state = getOrCreateState(id, guid);
         
         var task = Task.Run(async () => {
-            await executeAsync(id, guid, semaphore, () => {
-                action();
-
-                return Task.CompletedTask;
-            });
+            await executeAsync(id, guid, semaphore, func);
 
             ID_TO_CURRENT_TASKS[id].removeIfPresent(guid);
         });
@@ -59,7 +60,7 @@ public class MultiThreadHelper {
     }
     
     public Task<T> runAndExecuteAsync<T>(SemaphoreIdentifier id, Func<T> action) {
-        var semaphore = ID_TO_SEMAPHORE.computeIfAbsent(id, id1 => id1.createSemaphore());
+        var semaphore = ID_TO_SEMAPHORE.computeIfAbsent(id, id1 => id1.createOrGetSemaphore());
         var guid = Guid.NewGuid();
 
         var state = getOrCreateState(id, guid);
@@ -102,7 +103,7 @@ public class MultiThreadHelper {
             
             Plugin.logIfDebugging(source => source.LogInfo("Task Has been finished"), predicate: shouldPrintDebugInfo);
             
-            semaphore.Release(); // Release the permit
+            if (!id.hasManagedRelease) semaphore.Release(); // Release the permit
             
             Plugin.logIfDebugging(source => source.LogInfo("Permit has been released"), predicate: shouldPrintDebugInfo);
         }
@@ -128,13 +129,13 @@ public class MultiThreadHelper {
 
             Plugin.logIfDebugging(source => source.LogInfo("Task Has been finished"), predicate: shouldPrintDebugInfo);
             
-            semaphore.Release(); // Release the permit
+            if (!id.hasManagedRelease) semaphore.Release(); // Release the permit
             
             Plugin.logIfDebugging(source => source.LogInfo("Permit has been released"), predicate: shouldPrintDebugInfo);
         }
     }
 
-    private const int MAX_ALOTTED_TIME = (10 * 60);
+    private const int MAX_ALOTTED_TIME = 600; // in Seconds
 
     private bool isPrunning = false;
     private Stopwatch prunningWait = Stopwatch.StartNew();
@@ -170,22 +171,25 @@ public class MultiThreadHelper {
     }
 }
 
-public class SemaphoreIdentifier {
+public class SemaphoreIdentifier(Identifier identifier, int maxCount = 5, int initialCount = -1, bool managedRelease = false) {
     
-    public readonly Identifier identifier;
+    public readonly Identifier identifier = identifier;
     
-    private readonly int initialCount;
-    private readonly int maxCount;
+    private readonly int initialCount = initialCount == -1 ? maxCount : initialCount;
 
-    public SemaphoreIdentifier(Identifier identifier, int maxCount = 5, int initialCount = -1) {
-        this.identifier = identifier;
-        this.maxCount = maxCount;
-        this.initialCount = initialCount == -1 ? maxCount : initialCount;
+    private static readonly ConcurrentDictionary<Identifier, SemaphoreSlim> idToSlim = new ();
+    
+    private SemaphoreSlim? slim;
+
+    public SemaphoreSlim createOrGetSemaphore() {
+        slim ??= idToSlim.computeIfAbsent(identifier, () => new SemaphoreSlim(initialCount, maxCount));
+
+        return slim;
     }
 
-    public SemaphoreSlim createSemaphore() {
-        return new SemaphoreSlim(initialCount, maxCount);
-    }
+    public int getMaxCount => maxCount;
+
+    public bool hasManagedRelease => managedRelease;
 
     public static SemaphoreIdentifier createFromMedia(string url) {
         var id = Identifier.ofUri(url);
@@ -193,13 +197,10 @@ public class SemaphoreIdentifier {
         return new SemaphoreIdentifier(Identifier.of("texture_swapper", id.Namespace), maxCount: 4);
     }
     
-    protected bool Equals(SemaphoreIdentifier other) => identifier.Equals(other.identifier);
-
     public override bool Equals(object? obj) {
         if (obj is null) return false;
         if (ReferenceEquals(this, obj)) return true;
-        if (obj.GetType() != GetType()) return false;
-        return Equals((SemaphoreIdentifier)obj);
+        return obj is SemaphoreIdentifier other && identifier.Equals(other.identifier);
     }
 
     public override int GetHashCode() => identifier.GetHashCode();

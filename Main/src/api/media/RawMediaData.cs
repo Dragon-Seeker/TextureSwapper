@@ -5,10 +5,12 @@ using System.Net.Http;
 using System.Net.Http.Headers;
 using System.Threading.Tasks;
 using ImageMagick;
+using io.wispforest.textureswapper.api.core;
 using io.wispforest.textureswapper.api.query;
 using io.wispforest.textureswapper.api.query.impl;
 using io.wispforest.textureswapper.utils;
 using Sirenix.Utilities;
+using UnityEngine;
 
 namespace io.wispforest.textureswapper.api;
 
@@ -45,9 +47,13 @@ public record RawMediaData {
 
         if (!imageUrl.IsNullOrWhitespace()) {
             try {
-                bool loadedFromCache = true;
+                var loadedFromCache = true;
                 var mediaBytes = await tryAndGetCachedFile(imageUrl);
 
+                var dataGrabHasFinished = false;
+                var dataGrabWasCompleted = false;
+                Exception? exception = null;
+                
                 if (mediaBytes is null) {
                     Plugin.logIfDebugging(() => $"Unable to get cache file for the given url: {imageUrl}");
                     loadedFromCache = false;
@@ -57,11 +63,16 @@ public record RawMediaData {
 
                     var completedTask = await Task.WhenAny(dataGrabTask, delayTask);
                     
-                    var response = completedTask == dataGrabTask && dataGrabTask.IsCompletedSuccessfully 
+                    dataGrabHasFinished = completedTask == dataGrabTask;
+                    dataGrabWasCompleted = dataGrabHasFinished && dataGrabTask.IsCompletedSuccessfully;
+                    
+                    var response = dataGrabHasFinished && dataGrabWasCompleted
                             ? dataGrabTask.Result 
                             : null;
+
+                    if (!dataGrabWasCompleted) exception = dataGrabTask.Exception;
                     
-                    if (response is not null) {
+                    if (response is not null) { 
                         mediaBytes = await response.Content.ReadAsByteArrayAsync();
                         
                         //MediaInfo.PrintByteArray(mediaBytes);
@@ -75,7 +86,12 @@ public record RawMediaData {
                 }
                 
                 // TODO: CLIENT MAY HAVE BEEN DISPOSED INSTEAD BUT NO GOOD WAY TO CHECK
-                Plugin.Logger.LogError($"Unable to get image from url within {timeOutWindow} second window: {imageUrl}");
+                if (!dataGrabHasFinished) {
+                    Plugin.Logger.LogError($"[{DateTime.Now}] Unable to get Media as the task timed out before getting any data {timeOutWindow} second window: {imageUrl}");
+                } else {
+                    Plugin.Logger.LogError($"[{DateTime.Now}] Unable to get Media as the task did not complete successfully: {imageUrl}");
+                    if(exception != null) Plugin.Logger.LogError(exception);
+                }
             } catch (Exception e) {
                 Plugin.Logger.LogError($"An exception has occured when handling this url [{imageUrl}]: {e}");
             }

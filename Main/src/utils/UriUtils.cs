@@ -24,9 +24,7 @@ public class UriUtils {
         return null;
     }
     
-    public static string? getDomain(string url) {
-        return getURI(url)?.Host;
-    }
+    public static string? getDomain(string url) => getURI(url)?.Host;
     
     public static string getFormatFromUri(string url) {
         var possiblePath = getURI(url)?.PathAndQuery?.Split("?")?[0] ?? url;
@@ -38,17 +36,14 @@ public class UriUtils {
         if (string.IsNullOrEmpty(hostname)) return null;
 
         // Remove invalid characters and replace with underscores
-        string sanitizedName = Regex.Replace(hostname, @"[^a-zA-Z0-9_\-\.]", "_");
+        var sanitizedName = Regex.Replace(hostname, @"[^a-zA-Z0-9_\-\.]", "_");
 
         // Truncate if too long (adjust length as needed)
-        int maxLength = 255; // Example max length
-        if (sanitizedName.Length > maxLength) sanitizedName = sanitizedName.Substring(0, maxLength);
+        if (sanitizedName.Length > 255) sanitizedName = sanitizedName.Substring(0, 255);
 
         // Avoid reserved names (Windows example)
-        string[] reservedNames = { "CON", "PRN", "AUX", "NUL", "COM1", "COM2", "COM3", "COM4", "COM5", "COM6", "COM7", "COM8", "COM9", "LPT1", "LPT2", "LPT3", "LPT4", "LPT5", "LPT6", "LPT7", "LPT8", "LPT9" };
-        if (Array.IndexOf(reservedNames, sanitizedName.ToUpper()) >= 0) {
-            sanitizedName = "_" + sanitizedName; // Add an underscore to avoid conflict
-        }
+        string[] reservedNames = ["CON", "PRN", "AUX", "NUL", "COM1", "COM2", "COM3", "COM4", "COM5", "COM6", "COM7", "COM8", "COM9", "LPT1", "LPT2", "LPT3", "LPT4", "LPT5", "LPT6", "LPT7", "LPT8", "LPT9"];
+        if (Array.IndexOf(reservedNames, sanitizedName.ToUpper()) >= 0) sanitizedName = "_" + sanitizedName; 
 
         return sanitizedName;
     }

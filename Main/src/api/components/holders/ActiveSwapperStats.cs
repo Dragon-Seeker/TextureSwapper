@@ -1,6 +1,7 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.Runtime.InteropServices;
+using io.wispforest.textureswapper.api.core;
 using io.wispforest.textureswapper.api.query.impl;
 using io.wispforest.textureswapper.utils;
 using Unity.VisualScripting;
@@ -66,9 +67,9 @@ public class ActiveSwapperStats : MonoEvent {
 
             if (Plugin.config.prioritizeNewPictures() && instanceCount >= cutoff) return false;
 
-            var result = MediaSwapperStorage.getResult(id);
+            var key = MediaSwapperStorage.getQueryKey(id);
 
-            if (result is not null && UserSettings.isAlternativeCensorImage(result.guid)) return false;
+            if (key is not null && UserSettings.isAlternativeCensorImage(key)) return false;
 
             var handler = MediaSwapperStorage.getHandler(id);
 
@@ -81,7 +82,7 @@ public class ActiveSwapperStats : MonoEvent {
 
         if (materials.Count <= 0) return null;
         
-        var index = RandomUtils.useHash(() => Random.Range(0, materials.Count), hash);
+        var index = RandomUtils.preserveState(() => Random.Range(0, materials.Count), hash);
 
         var id = materials[index];
         

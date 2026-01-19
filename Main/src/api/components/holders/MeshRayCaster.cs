@@ -1,18 +1,14 @@
-using System;
 using System.Collections.Generic;
 using System.Linq;
 using BepInEx.Logging;
-using io.wispforest.textureswapper.api.components;
-using io.wispforest.textureswapper.api.components.holders;
+using io.wispforest.textureswapper.api.core;
+using io.wispforest.textureswapper.utils;
 using Unity.Collections;
 using Unity.Collections.LowLevel.Unsafe;
 using UnityEngine;
 using UnityEngine.Rendering;
-using UnityEngine.SceneManagement;
-using Logger = UnityEngine.Logger;
-using Object = UnityEngine.Object;
 
-namespace io.wispforest.textureswapper.utils;
+namespace io.wispforest.textureswapper.api.components.holders;
 
 // A ray caster that will create colliders from meshes in the scene
 public class MeshRayCaster : MonoEvent {
@@ -23,7 +19,7 @@ public class MeshRayCaster : MonoEvent {
    
    public static MeshRayCaster getOrCreate(ManualLogSource? logger = null, Getter<bool>? isDebugMode = null) {
       return HolderUtils.getOrCreate<MeshRayCaster>(ref holderObj, () => holderObj = null, "MeshRayCaster", 
-            caster => caster.setData(logger ?? Plugin.Logger, isDebugMode ?? Plugin.config.enableDebugLogging));
+            caster => caster.setData(logger ?? Plugin.Logger, isDebugMode ?? (() => false) /*Plugin.config.enableDebugLogging*/));
    }
    
    public MeshRayCaster setData(ManualLogSource? logger, Getter<bool>? isDebugMode) {

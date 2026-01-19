@@ -1,49 +1,35 @@
 ﻿using System;
 using io.wispforest.endec;
 using io.wispforest.endec.impl;
+using io.wispforest.textureswapper.api.core;
 using io.wispforest.textureswapper.api.query;
 using io.wispforest.textureswapper.utils;
 
 namespace io.wispforest.textureswapper.api.components;
 
-public class FullMediaData : EndecGetter<FullMediaData> {
+public class FullMediaData(MediaQueryKey key, Identifier id, MediaInfo info, MediaQueryResult result) : EndecGetter<FullMediaData> {
 
     public static readonly StructEndec<FullMediaData> ENDEC = StructEndecBuilder.of(
-            Identifier.ENDEC.fieldOf<FullMediaData>("id", s => s.id),
-            MediaInfo.ENDEC.fieldOf<FullMediaData>("info", s => s.info), 
-            MediaQueryTypeRegistry.RESULT_ENDEC.fieldOf<FullMediaData>("result", s => s.result),
-            (id, info, result) => new FullMediaData(id, info, result));
+        MediaQueryKey.ENDEC.fieldOf<FullMediaData>("key", s => s.key),
+        Identifier.ENDEC.fieldOf<FullMediaData>("id", s => s.id),
+        MediaInfo.ENDEC.fieldOf<FullMediaData>("info", s => s.info), 
+        MediaQueryTypeRegistry.RESULT_ENDEC.fieldOf<FullMediaData>("result", s => s.result),
+        (key, id, info, result) => new (key, id, info, result));
 
-    public static Endec<FullMediaData> Endec() {
-        return ENDEC;
-    }
+    public static Endec<FullMediaData> Endec() => ENDEC;
     
-    public Identifier id { get; }
-    public MediaInfo info { get; }
-    public MediaQueryResult result { get; }
+    public MediaQueryKey key { get; } = key;
+    public Identifier id { get; } = id;
+    public MediaInfo info { get; } = info;
+    public MediaQueryResult result { get; } = result;
 
-    public FullMediaData(Identifier id, MediaInfo info, MediaQueryResult result) {
-        this.id = id;
-        this.info = info;
-        this.result = result;
-    }
-
-    public bool isError() {
-        return this.info.isError;
-    }
-
-    protected bool Equals(FullMediaData other) {
-        return id.Equals(other.id)/* && info.Equals(other.info) && result.Equals(other.result)*/;
-    }
+    public bool isError() => this.info.isError;
 
     public override bool Equals(object? obj) {
         if (obj is null) return false;
         if (ReferenceEquals(this, obj)) return true;
-        if (obj.GetType() != GetType()) return false;
-        return Equals((FullMediaData)obj);
+        return obj is FullMediaData other && id.Equals(other.id);
     }
 
-    public override int GetHashCode() {
-        return id.GetHashCode(); //HashCode.Combine(id, info, result);
-    }
+    public override int GetHashCode() => id.GetHashCode();
 }

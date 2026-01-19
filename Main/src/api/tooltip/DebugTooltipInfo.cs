@@ -1,4 +1,5 @@
 using System;
+using io.wispforest.textureswapper.api.components.holders;
 using KeybindLib.Classes;
 using REPOLib.Modules;
 using UnityEngine;
@@ -36,26 +37,26 @@ public static class DebugTooltipInfo {
     }
     
     public static String? getInfo(float range, int unpackAmount, bool findNewObj = false) {
-        Plugin.logIfDebugging(source => source.LogInfo($"RayCasting with at range '{range}'."));
+        //Plugin.logIfDebugging(source => source.LogInfo($"RayCasting with at range '{range}'."));
 
         var rayCaster = MeshRayCaster.getOrCreate();
         
         var target = (findNewObj) ? rayCaster.raycast(range) : rayCaster.currentComponent;
         
         if (target == null) {
-            Plugin.logIfDebugging(source => source.LogInfo("Unable to find any target for raycast!"));
+            //Plugin.logIfDebugging(source => source.LogInfo("Unable to find any target for raycast!"));
             return null;
         }
         
         var gameObject = target!.transform.gameObject;
         
         // 3. Act on the object hit
-        Plugin.logIfDebugging(source => source.LogInfo($"Primary Target: {gameObject.name}"));
-        Plugin.logIfDebugging(source => source.LogInfo($"Unpacking '{unpackAmount}' levels deep."));
+        //Plugin.logIfDebugging(source => source.LogInfo($"Primary Target: {gameObject.name}"));
+        //Plugin.logIfDebugging(source => source.LogInfo($"Unpacking '{unpackAmount}' levels deep."));
         
         gameObject = gameObject.getParent(unpackAmount);
         
-        Plugin.logIfDebugging(source => source.LogInfo($"Unpacked Target: {gameObject.name}"));
+        //Plugin.logIfDebugging(source => source.LogInfo($"Unpacked Target: {gameObject.name}"));
 
         return gameObject.dumpDebugInfoTree(
                 indentSuffix: "  -> ", 

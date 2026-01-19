@@ -5,6 +5,8 @@ using System.Security.Cryptography;
 using System.Text;
 using io.wispforest.endec;
 using io.wispforest.endec.format.newtonsoft;
+using io.wispforest.endec.impl;
+using io.wispforest.textureswapper.api.core;
 using io.wispforest.textureswapper.utils;
 
 namespace io.wispforest.textureswapper.api.query;
@@ -14,7 +16,7 @@ public static class MediaQueryTypeRegistry {
 
     public static readonly StructEndec<MediaQueryResult> RESULT_ENDEC = StructEndec.of<MediaQueryResult>(
             (ctx, serializer, instance, value) => {
-                var id = value.getQueryTypeId();
+                var id = value.queryTypeId;
 
                 instance.field("id", ctx, Identifier.ENDEC, id);
             
@@ -37,9 +39,9 @@ public static class MediaQueryTypeRegistry {
     
     public static readonly StructEndec<MediaQuery> QUERY_DATA = StructEndec.of<MediaQuery>(
             (ctx, serializer, instance, value) => {
-                var id = value.getQueryTypeId();
+                var id = value.queryTypeId;
 
-                instance.field("id", ctx, Identifier.ENDEC, value.getQueryTypeId());
+                instance.field("id", ctx, Identifier.ENDEC, value.queryTypeId);
                 
                 if (!TYPES.ContainsKey(id)) {
                     throw new Exception($"Unable to encode the given Lookup Data as the given Lookup Id was not found: {id}");
@@ -62,7 +64,7 @@ public static class MediaQueryTypeRegistry {
         IDictionary<Identifier, IList<MediaQuery>> typeToQueries = new Dictionary<Identifier, IList<MediaQuery>>();
 
         foreach (var mediaQuery in queries) {
-            typeToQueries.computeIfAbsent(mediaQuery.getQueryTypeId(), _ => new List<MediaQuery>()).Add(mediaQuery);
+            typeToQueries.computeIfAbsent(mediaQuery.queryTypeId, _ => new List<MediaQuery>()).Add(mediaQuery);
         }
 
         return typeToQueries;
@@ -79,7 +81,7 @@ public static class MediaQueryTypeRegistry {
     }
 
     public static bool attemptToHandleQuery(MediaQuery query) {
-        var id = query.getQueryTypeId();
+        var id = query.queryTypeId;
         if (!TYPES.ContainsKey(id)) return false;
 
         var type = getTypeDyn(id);
@@ -108,14 +110,14 @@ public static class MediaQueryTypeRegistry {
     }
 }
 
-public class EmptyQueryResult() : MediaQueryResult(Guid.Empty) {
+public class EmptyQueryResult : MediaQueryResult {
     public static readonly Identifier NONE = Identifier.of("texture_swapper", "none");
     
     public static readonly StructEndec<EmptyQueryResult> ENDEC = endec.Endec.unit(new EmptyQueryResult());
 
     public static Endec<EmptyQueryResult> Endec() => ENDEC;
 
-    public override Identifier getQueryTypeId() => NONE;
+    public override Identifier queryTypeId => NONE;
     
     public override string ToString() => "Nothing";
 
@@ -124,13 +126,46 @@ public class EmptyQueryResult() : MediaQueryResult(Guid.Empty) {
     public override int GetHashCode() => ToString().GetHashCode();
 }
 
-public abstract class MediaQuery {
+public class MediaQueryKey(Identifier? id = null) {
 
-    public Guid guid { get; } = Guid.NewGuid();
+    public static readonly MediaQueryKey EMPTY = new MediaQueryKey {
+        guid = Guid.Empty,
+        id = EmptyQueryResult.NONE
+    };
 
-    public abstract Identifier getQueryTypeId();
+    public static readonly Endec<MediaQueryKey> ENDEC = StructEndecBuilder.of(
+        GuidUtils.ENDEC.fieldOf<MediaQueryKey>("guid", s => s.guid),
+        Identifier.ENDEC.optionalFieldOf<MediaQueryKey>("id", s => s.id, () => null),
+        (guid, id) => new MediaQueryKey {
+            id = id,
+            guid = guid
+        }
+    );
+    
+    public Guid guid { get; private init; } = id?.shaToGuid() ?? Guid.NewGuid();
+    
+    public Identifier? id { get; private init; } = id;
+    
+    public override bool Equals(object? obj) {
+        if (obj is null) return false;
+        if (ReferenceEquals(this, obj)) return true;
+        return (obj is MediaQueryKey other) && guid.Equals(other.guid);
+    }
 
-    public virtual MediaQuery createFrom() {
+    public override int GetHashCode() => guid.GetHashCode();
+
+    public static bool operator ==(MediaQueryKey? left, MediaQueryKey? right) => Equals(left, right);
+
+    public static bool operator !=(MediaQueryKey? left, MediaQueryKey? right) => !Equals(left, right);
+}
+
+public abstract class MediaQuery(Identifier? id = null) {
+
+    public MediaQueryKey key { get; } = new (id);
+
+    public abstract Identifier queryTypeId { get; }
+
+    public virtual MediaQuery copy() {
         var data = MediaQueryTypeRegistry.QUERY_DATA.encodeFully(JsonSerializer.of, this);
 
         var obj = MediaQueryTypeRegistry.QUERY_DATA.decodeFully(JsonDeserializer.of, data);
@@ -139,13 +174,10 @@ public abstract class MediaQuery {
     }
 }
 
-public abstract class MediaQueryResult(Guid guid) {
+public abstract class MediaQueryResult {
+    public Guid guid { get; internal set; }
 
-    public static readonly Guid NETWORKED_GUID = Guid.NewGuid();
-    
-    public Guid guid { get; set; } = guid;
-
-    public abstract Identifier getQueryTypeId();
+    public abstract Identifier queryTypeId { get; }
 
     public virtual void addToTooltip(StringBuilder builder) { }
 }
@@ -174,7 +206,7 @@ public abstract class MediaQueryType<Q, R> where R : MediaQueryResult where Q : 
     
     public void executeQuery(MediaQuery data) {
         if (!canHandleQueryData(data)) {
-            throw new Exception($"Unable to handle data as its not valid for this Query Type! [Type: {getLookupId()}, Data Type: {data.getQueryTypeId()}]");
+            throw new Exception($"Unable to handle data as its not valid for this Query Type! [Type: {getLookupId()}, Data Type: {data.queryTypeId}]");
         }
         
         executeQuery((Q) data);

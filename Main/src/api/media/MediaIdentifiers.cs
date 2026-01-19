@@ -1,6 +1,7 @@
 ﻿using System.Collections.Generic;
 using System.IO;
 using System.Linq;
+using io.wispforest.textureswapper.api.core;
 using io.wispforest.textureswapper.api.query.impl;
 using io.wispforest.textureswapper.utils;
 
@@ -19,7 +20,7 @@ public class MediaIdentifiers {
 
         var files = images.Select(s => Path.Combine(pluginFolder, s)).ToList();
         
-        var query = LocalMediaQuery.ofFiles(files);
+        var query = LocalMediaQuery.ofFiles(Identifier.of(Plugin.id, "base_default_media_ids"), files);
 
         query.syncedTask = true;
         

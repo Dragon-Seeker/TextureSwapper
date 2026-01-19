@@ -64,6 +64,8 @@
     <PackageReference Include="Endec.Json" Version="1.0.1" />
 
     <PackageReference Include="StandardSocketsHttpHandler" Version="2.2.0.10" />
+    
+    <PackageReference Include="Facepunch.Steamworks" Version="2.3.3" />
 
     <!-- Game libs  -->
     
@@ -217,6 +219,11 @@
     <PackageReference Include="Microsoft.NETFramework.ReferenceAssemblies" Version="1.0.2" PrivateAssets="all" />
   </ItemGroup>
 
+  <ItemGroup>
+    <Folder Include="PublishOutput\" />
+  </ItemGroup>
+  
+  
   <Target Name="RunCompressScript" AfterTargets="Build">
     <PropertyGroup>
       <ProjectDir>$(MSBuildThisFileDirectory)\</ProjectDir>

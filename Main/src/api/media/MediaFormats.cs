@@ -13,6 +13,7 @@ using ImageMagick;
 using io.wispforest.endec;
 using io.wispforest.endec.impl;
 using io.wispforest.endec.util;
+using io.wispforest.textureswapper.api.core;
 using io.wispforest.textureswapper.utils;
 using NAudio.Wave;
 using Sirenix.Utilities;
@@ -46,9 +47,7 @@ public static class MediaFormats {
     public static MediaFormat getFormatFromUrl(string url) {
         var locatedFormat = HttpClientUtils.getFormatAsString(url);
         
-        Plugin.logIfDebugging(source => {
-            source.LogInfo($"URL format is: {locatedFormat}");
-        });
+        Plugin.logIfDebugging(source => source.LogInfo($"URL format is: {locatedFormat}"));
         
         return getFormat(locatedFormat);
     }
@@ -582,6 +581,8 @@ public abstract class MediaFormat {
     public abstract MediaType getType();
 
     public abstract SwapperImpl? decodeData(Identifier id, RawMediaData data);
+
+    public override string ToString() => name();
 
     public override bool Equals(object? obj) {
         if (obj is null) return false;

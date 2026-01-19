@@ -1,6 +1,7 @@
 ﻿using System;
 using System.Collections.Generic;
 using io.wispforest.textureswapper.api.components.holders;
+using io.wispforest.textureswapper.api.core;
 using io.wispforest.textureswapper.utils;
 using Unity.VisualScripting;
 using UnityEngine;

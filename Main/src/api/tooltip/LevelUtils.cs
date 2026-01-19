@@ -37,18 +37,14 @@ public static class LevelUtils {
         return predicate(manager, currentLevel);
     }
 
-    public static bool isCurrentLevel(this RunManager manager, Level otherLevel) {
-        if (otherLevel == null) return false;
-        
-        var currentLevel = manager.levelCurrent;
-
-        return currentLevel != null && currentLevel == otherLevel;
+    public static bool isCurrentLevel(Level level1, Level level2) {
+        return level1 != null && level2 != null && level1 == level2;
     }
     
     public static LevelPredicate of(Operation operation, params LevelGetter[] getters) {
         return operation switch {
-                Operation.ANY => (manager, _) => getters.Select(getter => getter(manager)).Any(manager.isCurrentLevel),
-                Operation.NONE => (manager, _) => getters.Select(getter => getter(manager)).Any(level => !manager.isCurrentLevel(level)),
+                Operation.ANY => (manager, level) => getters.Select(getter => getter(manager)).Any(level1 => isCurrentLevel(level1, level)),
+                Operation.NONE => (manager, level) => getters.Select(getter => getter(manager)).Any(level1 => !isCurrentLevel(level1, level)),
                 _ => throw new ArgumentOutOfRangeException(nameof(operation), operation, "Invalid operation based when creating level predicate")
         };
     }

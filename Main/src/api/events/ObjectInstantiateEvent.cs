@@ -13,7 +13,7 @@ public class ObjectInstantiateEvent {
     public static void setupAndRun(object __result, object[]? __args = null) {
         if (__result is not Object obj) return;
         
-        Plugin.Logger.LogInfo($"Name: {obj.name}, Type: {obj.GetType()}");
+        //Plugin.Logger.LogInfo($"Name: {obj.name}, Type: {obj.GetType()}");
         
         try {
             Vector3? position = null;

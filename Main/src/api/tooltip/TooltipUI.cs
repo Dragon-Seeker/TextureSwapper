@@ -2,6 +2,7 @@ using System;
 using System.Collections;
 using System.Collections.Generic;
 using System.Linq;
+using System.Reflection;
 using io.wispforest.textureswapper.utils;
 using JetBrains.Annotations;
 using TMPro;
@@ -40,6 +41,8 @@ public class TooltipUI : SemiUI {
 
                 tooltipUI.showPosition = new Vector2(135, 105);
                 tooltipUI.hidePosition = new Vector2(500, 105);
+
+                tooltipUI.doNotDisable = [];
                 
                 var panelRect = panel.GetOrAddComponent<RectTransform>();
                 
@@ -243,8 +246,10 @@ public class TooltipUI : SemiUI {
         } else if (!isHidden) {
             state = ChangingState.SHOWN;
         }
-        
-        base.Update();
+
+        try {
+            base.Update();
+        } catch (Exception _) { }
 
         var invalidKeys = getInvalidKeys();
         
@@ -318,8 +323,7 @@ public class TooltipKey(int index, string name, bool showName = false, LevelPred
     public override bool Equals(object? obj) {
         if (obj is null) return false;
         if (ReferenceEquals(this, obj)) return true;
-        if (obj is not TooltipKey other) return false;
-        return index == other.index && name == other.name;
+        return obj is TooltipKey other && index == other.index && name == other.name;
     }
 
     public override int GetHashCode() {
