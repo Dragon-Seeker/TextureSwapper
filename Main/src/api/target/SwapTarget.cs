@@ -79,24 +79,6 @@ public interface BaseObjectSwapTarget : SwapTarget  {
     bool isValid(UnityEngine.Object obj);
 }
 
-public interface BaseObjectSwapTarget<in T> : BaseObjectSwapTarget where T : UnityEngine.Object {
-    new Predicate<T> objPredicate { get; }
-
-    bool BaseObjectSwapTarget.isValid(UnityEngine.Object obj) => obj is T;
-}
-
-public interface ObjectSwapTarget: BaseObjectSwapTarget<UnityEngine.Object> {
-    abstract Predicate<UnityEngine.Object> BaseObjectSwapTarget<UnityEngine.Object>.objPredicate { get; }
-}
-
-public interface GameObjectSwapTarget : BaseObjectSwapTarget<GameObject> {
-    abstract Predicate<GameObject> BaseObjectSwapTarget<GameObject>.objPredicate { get; }
-}
-
-public interface MeshRendererSwapTarget : BaseObjectSwapTarget<MeshRenderer> {
-    abstract Predicate<MeshRenderer> BaseObjectSwapTarget<MeshRenderer>.objPredicate { get; }
-}
-
 public interface MaterialSwapTarget : SwapTarget {
     Predicate2<int, Material> materialPredicate { get; }
 }

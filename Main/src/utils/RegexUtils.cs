@@ -36,16 +36,16 @@ public class RegexUtils {
 
     public static RegexOptions fromString(string str) {
         return str switch { 
-                "IgnoreCase" or "i"                       => RegexOptions.IgnoreCase, 
-                "Multiline" or "m"                        => RegexOptions.Multiline, 
-                "ExplicitCapture" or "ec" or "n"          => RegexOptions.ExplicitCapture, 
-                "Compiled" or "c"                         => RegexOptions.Compiled, 
-                "Singleline" or "s"                       => RegexOptions.Singleline, 
-                "IgnorePatternWhitespace" or "ipw" or "x" => RegexOptions.IgnorePatternWhitespace, 
-                "RightToLeft" or "rtl" or "r"             => RegexOptions.RightToLeft, 
-                "ECMAScript" or "ecmas"                   => RegexOptions.ECMAScript, 
-                "CultureInvariant" or "ci"                => RegexOptions.CultureInvariant,
-                _                                         => RegexOptions.None
+            "IgnoreCase" or "i"                       => RegexOptions.IgnoreCase, 
+            "Multiline" or "m"                        => RegexOptions.Multiline, 
+            "ExplicitCapture" or "ec" or "n"          => RegexOptions.ExplicitCapture, 
+            "Compiled" or "c"                         => RegexOptions.Compiled, 
+            "Singleline" or "s"                       => RegexOptions.Singleline, 
+            "IgnorePatternWhitespace" or "ipw" or "x" => RegexOptions.IgnorePatternWhitespace, 
+            "RightToLeft" or "rtl" or "r"             => RegexOptions.RightToLeft, 
+            "ECMAScript" or "ecmas"                   => RegexOptions.ECMAScript, 
+            "CultureInvariant" or "ci"                => RegexOptions.CultureInvariant,
+            _                                         => RegexOptions.None
         };
     }
 }

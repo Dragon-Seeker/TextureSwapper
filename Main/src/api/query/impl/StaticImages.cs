@@ -30,12 +30,13 @@ public class StaticWeb : BaseUnityPlugin {
         MediaQueryTypeRegistry.register<StaticWebQueryType, StaticWebQuery, StaticWebQueryResult>(StaticWebQueryType.INSTANCE);
 
         Plugin.ADDITIONAL_QUERY_LOOKUP += callback => {
-            callback(StaticWebQueryType.ID, [getConfigQuery()]);
+            var query = getConfigQuery();
+            if (query != null) callback(StaticWebQueryType.ID, [query]);
         };
     }
 
-    public static StaticWebQuery getConfigQuery() {
-        if (CONFIG_QUERY is null) {
+    public static StaticWebQuery? getConfigQuery() {
+        if (CONFIG_QUERY is null && Plugin.config.staticWebMedia().isNotEmpty()) {
             CONFIG_QUERY = StaticWebQuery.of(Identifier.of(Plugin.id, "config_query"), Plugin.config.staticWebMedia());
         }
 

@@ -13,12 +13,18 @@ namespace io.wispforest.textureswapper.api.config;
 
 public class LayeredConfigFile(BepInPlugin ownerMetadata) : DummyConfigFile("layered_settings", ownerMetadata), IDictionary<ConfigDefinition, ConfigEntryBase> {
     
-    protected readonly SortedList<ConfigDefinition, ConfigEntryBase> entries = new (new ConfigDefinitionComparer());
+    protected readonly List<ConfigDefinition> defs = [];
+    
+    protected readonly SortedList<ConfigDefinition, ConfigEntryBase> entries;
+    
     private readonly List<ConfigFile> files = [];
 
     public LayeredConfigFile(BaseUnityPlugin plugin, bool setAsConfigForPlugin = true) : this(MetadataHelper.GetMetadata(plugin)) {
         if (setAsConfigForPlugin) plugin.setPluginConfig(this);
+        entries = new(new ConfigDefinitionComparer(indexGetter: getIndex));
     }
+
+    private int getIndex(ConfigDefinition def) => defs.IndexOf(def);
 
     public ConfigEntry<T> Bind<T>(ConfigFile fileParent, string section, string key, T defaultValue, ConfigDescription? configDescription = null) {
         return Bind<T>(fileParent, new ConfigDefinition(section, key), defaultValue, configDescription);
@@ -32,6 +38,7 @@ public class LayeredConfigFile(BepInPlugin ownerMetadata) : DummyConfigFile("lay
         var entry = fileParent.Bind(def, defaultValue, desc);
         
         entries[def] = entry;
+        defs.Add(def);
         
         if(!files.Contains(fileParent)) files.Add(fileParent);
 
@@ -44,7 +51,7 @@ public class LayeredConfigFile(BepInPlugin ownerMetadata) : DummyConfigFile("lay
     
     IEnumerator IEnumerable.GetEnumerator() => GetEnumerator();
     
-    public bool Contains(KeyValuePair<ConfigDefinition, ConfigEntryBase> item)  => entries.Contains(item);
+    public bool Contains(KeyValuePair<ConfigDefinition, ConfigEntryBase> item) => entries.Contains(item);
 
     public int Count  => entries.Count;
 
@@ -79,7 +86,7 @@ public static class CursedPluginExtensions {
     }
 }
 
-public class ConfigDefinitionComparer(string cultureName = "en-US", CompareOptions? options = null) : IComparer<ConfigDefinition> {
+public class ConfigDefinitionComparer(string cultureName = "en-US", CompareOptions? options = null, Func<ConfigDefinition, int>? indexGetter = null) : IComparer<ConfigDefinition> {
 
     private readonly CultureInfo info = createInfo(cultureName);
     
@@ -92,10 +99,18 @@ public class ConfigDefinitionComparer(string cultureName = "en-US", CompareOptio
     }
     
     public int Compare(ConfigDefinition? x, ConfigDefinition? y) {
+        return baseCompare(x, y) * -1; 
+    }
+
+    private int baseCompare(ConfigDefinition? x, ConfigDefinition? y) {
         if (ReferenceEquals(x, y)) return 0;
         if (y is null) return 1;
         if (x is null) return -1;
 
-        return info.CompareInfo.Compare(x.Section, y.Section, options ?? CompareOptions.None);
+        var value = info.CompareInfo.Compare(x.Section, y.Section, options ?? CompareOptions.None);
+
+        if (value != 0) return value;
+
+        return indexGetter?.Invoke(x).CompareTo(indexGetter(y)) ?? info.CompareInfo.Compare(x.Key, y.Key, options ?? CompareOptions.None);
     }
 }

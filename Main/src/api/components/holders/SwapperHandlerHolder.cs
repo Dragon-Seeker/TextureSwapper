@@ -36,7 +36,7 @@ public class SwapperHandlerHolder : MonoBehaviour {
     public void setCurrentMeshHandlerAndSwap(GameObject gameObject, MeshRenderer mesh, int i, UnityEngine.Material prevMaterial, Action<UnityEngine.Material> materialSet, MeshSwapper? handler = null) {
         unswapIfPrevMeshInstance(gameObject, mesh, i);
         
-        if (handler is null) {
+        if (handler == null) {
             swapToBaseMeshInstance(gameObject, mesh, i, materialSet);
         } else {
             getBaseHandlers(mesh).computeIfAbsent(i, _ => new MaterialSwapper(Identifier.of("texture_swapper", "base_material"), prevMaterial));
