@@ -50,7 +50,7 @@ CodeCoverage/
 TestResult.xml
 nunit-*.xml
 
-/libs/
+[Ll]ibs/
 PublishOutput/
 temp/
 

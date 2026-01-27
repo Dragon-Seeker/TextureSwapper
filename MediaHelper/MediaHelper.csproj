@@ -11,20 +11,21 @@
     <LangVersion>12</LangVersion>
     <RestoreAdditionalProjectSources>
       https://api.nuget.org/v3/index.json;
+      https://f.feedz.io/videolan/preview/nuget/index.json;
       https://nuget.bepinex.dev/v3/index.json;
       https://nuget.samboy.dev/v3/index.json;
       https://nuget.windows10ce.com/nuget/v3/index.json
     </RestoreAdditionalProjectSources>
+    
     
     <RootNamespace>io.wispforest</RootNamespace>
 
     <GameRoot>E:\Programs\Steam\steamapps\common\REPO</GameRoot>
     <ManagedRoot>$(GameRoot)\REPO_Data\Managed</ManagedRoot>
     
-    
     <PublishOutputDir>$(MSBuildThisFileDirectory)PublishOutput</PublishOutputDir>
     <AssetsDir>$(MSBuildThisFileDirectory)assets</AssetsDir>
-    <LibDir>.\libs</LibDir>
+    <LibDir>$(MSBuildThisFileDirectory)\..\libs</LibDir>
     
     <NetMagickVersion>14.10.1</NetMagickVersion>
     <NetMagickType>Magick.NET-Q8-x64</NetMagickType>
@@ -86,12 +87,14 @@
     <Folder Include="PublishOutput\" />
   </ItemGroup>
 
+  
   <Target Name="RunCompressScript" AfterTargets="Build">
     <PropertyGroup>
       <ProjectDir>$(MSBuildThisFileDirectory)\</ProjectDir>
       <RealTargetDir>$(TargetDir)\</RealTargetDir>
+      <RealLibDir>$(ProjectDir)..\libs</RealLibDir>
     </PropertyGroup>
-    <Exec Command="powershell -File &quot;$(MSBuildProjectDirectory)\PublishTask.ps1&quot; -PublishOutputDir &quot;$(PublishOutputDir)&quot; -ProjectDir &quot;$(ProjectDir)&quot; -TargetDir &quot;$(RealTargetDir)&quot; -AssemblyName &quot;$(AssemblyName)&quot; -Version &quot;$(Version)&quot;" />
+    <Exec Command="powershell -File &quot;$(MSBuildProjectDirectory)\PublishTask.ps1&quot; -PublishOutputDir &quot;$(PublishOutputDir)&quot; -ProjectDir &quot;$(ProjectDir)&quot; -LibsDir &quot;$(RealLibDir)&quot; -BuildOutputDir &quot;$(RealTargetDir)&quot; -AssemblyName &quot;$(AssemblyName)&quot; -Version &quot;$(Version)&quot;" />
   </Target>
 
 </Project>

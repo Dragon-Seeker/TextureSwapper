@@ -1,41 +1,64 @@
 ﻿param(
     [string]$PublishOutputDir,
     [string]$ProjectDir,
-    [string]$TargetDir,
+    [string]$LibsDir,
+    [string]$BuildOutputDir,
     [string]$AssemblyName,
     [string]$Version
 )
 
-$AssetsDir = $ProjectDir + "assets"
+function CopyTo { param ([string]$rootDir, [string]$outputDir, [string]$filePath)
+    # Calculate relative path by removing the BaseDir from the Full Path and make path in zip dir
+    $resolvedRootDir = [Regex]::Escape((Resolve-Path $rootDir))
+    $relativePath = ($filePath -replace $resolvedRootDir, "").TrimStart("\")
+    
+    # Define and create the target subfolder in Staging
+    $targetPath = Join-Path $outputDir $relativePath
+    $targetDir = Split-Path $targetPath
 
-Write-Host "--- Parameters and Values ---"
-foreach ($param in $PSBoundParameters.Keys) {
-    Write-Host "$param=$($PSBoundParameters[$param])"
+    # Write-Host "$targetPath"
+    
+    if (!(Test-Path $targetDir)) { New-Item -ItemType Directory -Path $targetDir -Force | Out-Null }
+    
+    # Copy the file to its new home in the staging tree
+    Copy-Item -Path $filePath -Destination $targetPath
 }
 
-$allFiles = @()
+#Write-Host "--- Parameters and Values ---"
+#foreach ($param in $PSBoundParameters.Keys) { Write-Host "$param=$($PSBoundParameters[$param])" }
+
+# -- -- -- Setup
+
+$AssetsDir = $ProjectDir + "assets"
+
+# Create the publish output directory if it doesn't exist
+New-Item -ItemType Directory -Path $PublishOutputDir -Force
+
+$TempZipDir = "$PublishOutputDir\ZipStaging"
+
+if (Test-Path $TempZipDir) { Remove-Item $TempZipDir -Recurse -Force }
+New-Item -ItemType Directory -Path $TempZipDir
+
+$programFiles = @()
+$assetsFiles = @()
+
+# -- -- -- Create formatted manifest file
 
 # Define the name of your JSON file
-$jsonFileName = "manifest.json" # Replace with the actual name of your JSON file
-$jsonFilePath = Join-Path $AssetsDir $jsonFileName
-$tempJsonFilePath = Join-Path $PublishOutputDir "$jsonFileName"
-$modifiedJsonIncluded = $false
+$fileName = "manifest.json"
+$rawJsonManifest = Join-Path $AssetsDir $fileName
+$formattedJsonManifest = Join-Path $TempZipDir $fileName
 
-# Check if the JSON file exists and process it
-if (Test-Path $jsonFilePath) {
+if (Test-Path $rawJsonManifest) {
     try {
         # Read the content of the JSON file
-        $jsonContent = Get-Content $jsonFilePath -Raw
+        $jsonContent = Get-Content $rawJsonManifest -Raw
 
         # Replace the placeholder "$(version)" with the $Version parameter
         $modifiedJsonContent = $jsonContent -replace '\$\(version\)', $Version
 
         # Write the modified content to a temporary JSON file
-        $modifiedJsonContent | Out-File $tempJsonFilePath -Encoding UTF8
-
-        # Add the temporary JSON file to the list of files to be zipped
-        $allFiles += $tempJsonFilePath
-        $modifiedJsonIncluded = $true
+        $modifiedJsonContent | Out-File $formattedJsonManifest -Encoding UTF8
     } catch {
         Write-Error "An error occurred while processing the JSON file: $_"
     }
@@ -43,32 +66,20 @@ if (Test-Path $jsonFilePath) {
     Write-Warning "JSON file '$jsonFileName' not found in '$AssetsDir'."
 }
 
-# Create the publish output directory if it doesn't exist
-New-Item -ItemType Directory -Path $PublishOutputDir -Force
-
-# Get all files from the assets directory recursively
-$assetsFiles = Get-ChildItem -Path $AssetsDir -Recurse -File | Where-Object {$_.Name -ne "manifest.json"} | Select-Object -ExpandProperty FullName
-
-# Adds the asset files
-$allFiles += $assetsFiles
-
-# Add the TextureSwapper.dll and TextureSwapper.pdb from PublishOutputDir
-$allFiles += "$TargetDir\$AssemblyName.dll", "$TargetDir\$AssemblyName.pdb"
-
 # -- -- --
+
 $releaseVersion = "ffmpeg-7.1.1-essentials_build"
 
 # Define the source URL and destination path
 $sourceUrl = "http://www.gyan.dev/ffmpeg/builds/packages/$releaseVersion.7z"
 $destinationPath = "$ProjectDir\temp\" # Change this if you want a different destination
 
-$archiveName = "$releaseVersion.7z"
-$archiveFullPath = Join-Path $destinationPath $archiveName
+$archiveFullPath = Join-Path $destinationPath "$releaseVersion.7z"
 
 $binPath = Join-Path $destinationPath "$releaseVersion\bin" # Path inside the archive
 
-$ffmpegExePath = Join-Path $destinationPath "$releaseVersion\bin\ffmpeg.exe"
-$ffprobeExePath = Join-Path $destinationPath "$releaseVersion\bin\ffprobe.exe"
+$ffmpegExePath = Join-Path $binPath "ffmpeg.exe"
+$ffprobeExePath = Join-Path $binPath "ffprobe.exe"
 
 # Create the destination directory if it doesn't exist
 if (-not (Test-Path -Path $destinationPath -PathType 'Container')) {
@@ -91,15 +102,11 @@ if (-not (Test-Path -Path $archiveFullPath -PathType 'Leaf')) {
     Write-Host "Archive file already exists: $archiveFullPath"
 }
 
-
 # Check if 7-Zip is installed
 $zipPath = Get-Command "7z" -ErrorAction SilentlyContinue
 if (!$zipPath) {
     # 7-Zip not found in PATH, check common locations
-    $commonLocations = @(
-        "C:\Program Files\7-Zip\7z.exe",
-        "C:\Program Files (x86)\7-Zip\7z.exe"
-    )
+    $commonLocations = @("C:\Program Files\7-Zip\7z.exe", "C:\Program Files (x86)\7-Zip\7z.exe")
     foreach ($location in $commonLocations) {
         if (Test-Path -Path $location -PathType 'Leaf') {
             $zipPath = $location
@@ -131,35 +138,44 @@ if ((Test-Path -Path $ffmpegExePath -PathType 'Leaf') -and (Test-Path -Path $ffp
 
 Write-Host "FFmpeg download process complete."
 
-$allFiles += $ffmpegExePath, $ffprobeExePath
+# -- -- --
 
-# -- -- -- 
+# Get all files from the assets directory recursively
+$assetsFiles = Get-ChildItem -Path $AssetsDir -Recurse -File | Where-Object {$_.Name -ne "manifest.json"} | Select-Object -ExpandProperty FullName
 
-#$depdenciesFolder = "$TargetDir\publish"
-$depdenciesFolder = "$TargetDir"
+# Add the TextureSwapper.dll and TextureSwapper.pdb from PublishOutputDir
+$programFiles += "$BuildOutputDir\$AssemblyName.dll", "$BuildOutputDir\$AssemblyName.pdb"
+
+
+$programFiles += $ffmpegExePath, $ffprobeExePath
 
 ## FFMPegCore Stuff
-$allFiles += "$depdenciesFolder\FFMpegCore.dll", "$depdenciesFolder\Instances.dll", "$depdenciesFolder\Microsoft.Bcl.AsyncInterfaces.dll"
-$allFiles += "$depdenciesFolder\System.Buffers.dll", "$depdenciesFolder\System.IO.Pipelines.dll", "$depdenciesFolder\System.Memory.dll"
-$allFiles += "$depdenciesFolder\System.Numerics.Vectors.dll", "$depdenciesFolder\System.Runtime.CompilerServices.Unsafe.dll"
-$allFiles += "$depdenciesFolder\System.Text.Encodings.Web.dll", "$depdenciesFolder\System.Text.Json.dll", "$depdenciesFolder\System.Threading.Tasks.Extensions.dll"
+$programFiles += "$BuildOutputDir\FFMpegCore.dll", "$BuildOutputDir\Instances.dll", "$BuildOutputDir\Microsoft.Bcl.AsyncInterfaces.dll"
+$programFiles += "$BuildOutputDir\System.Buffers.dll", "$BuildOutputDir\System.IO.Pipelines.dll", "$BuildOutputDir\System.Memory.dll"
+$programFiles += "$BuildOutputDir\System.Numerics.Vectors.dll", "$BuildOutputDir\System.Runtime.CompilerServices.Unsafe.dll"
+$programFiles += "$BuildOutputDir\System.Text.Encodings.Web.dll", "$BuildOutputDir\System.Text.Json.dll", "$BuildOutputDir\System.Threading.Tasks.Extensions.dll"
 
 # Magick Stuff
-$allFiles += "$depdenciesFolder\Magick.NET-Q8-x64.dll", "$depdenciesFolder\Magick.NET.Core.dll", "$TargetDir\Magick.Native-Q8-x64.dll"
+$programFiles += "$BuildOutputDir\Magick.NET-Q8-x64.dll", "$BuildOutputDir\Magick.NET.Core.dll", "$BuildOutputDir\Magick.Native-Q8-x64.dll"
 
 # NAudio
-$allFiles += "$depdenciesFolder\NAudio.dll", "$depdenciesFolder\NAudio.Asio.dll", "$depdenciesFolder\NAudio.Core.dll", "$depdenciesFolder\NAudio.Midi.dll"
-$allFiles += "$depdenciesFolder\NAudio.Wasapi.dll", "$depdenciesFolder\NAudio.WinForms.dll", "$depdenciesFolder\NAudio.WinMM.dll"
+$programFiles += "$BuildOutputDir\NAudio.dll", "$BuildOutputDir\NAudio.Asio.dll", "$BuildOutputDir\NAudio.Core.dll", "$BuildOutputDir\NAudio.Midi.dll"
+$programFiles += "$BuildOutputDir\NAudio.Wasapi.dll", "$BuildOutputDir\NAudio.WinForms.dll", "$BuildOutputDir\NAudio.WinMM.dll"
 
-# Create the compressed archive
-$DestinationPath = Join-Path $PublishOutputDir "$AssemblyName-$Version.zip"
-Compress-Archive -Path $allFiles -DestinationPath $DestinationPath -Force
+# -- -- -- Copy collected files to temp dir 
 
-Write-Host "Successfully created archive: $DestinationPath"
+# Copy assets files to the temp staging directory
+foreach ($assetPath in $assetsFiles) { CopyTo -rootDir $AssetsDir -outputDir $TempZipDir -filePath $assetPath }
 
-# Remove the temporary JSON file after archiving (if it was created)
-if ($modifiedJsonIncluded -and (Test-Path $tempJsonFilePath)) {
-    Remove-Item $tempJsonFilePath -Force
+# Copy program files to plugins folder 
+foreach ($programFile in $programFiles) { Copy-Item -Path $programFile -Destination "$TempZipDir\plugins"  }
 
-    Write-Host "Removed temp JSON manifest: $tempJsonFilePath"
-}
+# -- -- --
+
+$OutputZip = Join-Path $PublishOutputDir "$AssemblyName-$Version.zip"
+
+Compress-Archive -Path "$TempZipDir\*" -DestinationPath $OutputZip -Force
+
+Remove-Item $TempZipDir -Recurse -Force # Delete contents of temp zip dir
+
+Write-Host "Successfully created archive: $OutputZip"

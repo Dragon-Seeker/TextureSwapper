@@ -1,46 +1,63 @@
 ﻿param(
     [string]$PublishOutputDir,
     [string]$ProjectDir,
-    [string]$TargetDir,
+    [string]$BuildOutputDir,
     [string]$AssemblyName,
     [string]$Version
 )
 
-$AssetsDir = $ProjectDir + "assets"
+function CopyTo { param ([string]$rootDir, [string]$outputDir, [string]$filePath)
+    # Calculate relative path by removing the BaseDir from the Full Path and make path in zip dir
+    $resolvedRootDir = [Regex]::Escape((Resolve-Path $rootDir))
+    $relativePath = ($filePath -replace $resolvedRootDir, "").TrimStart("\")
+    
+    # Define and create the target subfolder in Staging
+    $targetPath = Join-Path $outputDir $relativePath
+    $targetDir = Split-Path $targetPath
+
+    # Write-Host "$targetPath"
+    
+    if (!(Test-Path $targetDir)) { New-Item -ItemType Directory -Path $targetDir -Force | Out-Null }
+    
+    # Copy the file to its new home in the staging tree
+    Copy-Item -Path $filePath -Destination $targetPath
+}
 
 #Write-Host "--- Parameters and Values ---"
-#foreach ($param in $PSBoundParameters.Keys) {
-#    Write-Host "$param=$($PSBoundParameters[$param])"
-#}
+#foreach ($param in $PSBoundParameters.Keys) { Write-Host "$param=$($PSBoundParameters[$param])" }
 
-$programFiles = @()
+# -- -- -- Setup
 
-$TempStaging = "$PublishOutputDir\ZipStaging"
+$AssetsDir = $ProjectDir + "assets"
 
-if (Test-Path $TempStaging) { Remove-Item $TempStaging -Recurse -Force }
-New-Item -ItemType Directory -Path $TempStaging
+# Create the publish output directory if it doesn't exist
+New-Item -ItemType Directory -Path $PublishOutputDir -Force
+
+$TempZipDir = "$PublishOutputDir\ZipStaging"
+
+if (Test-Path $TempZipDir) { Remove-Item $TempZipDir -Recurse -Force }
+New-Item -ItemType Directory -Path $TempZipDir
+
+$programFiles = @() #  All DLL and related files
+$assetsFiles = @()  #  All asset files related to mod info, icon, images or other data related files
+
+# -- -- -- Create formatted manifest file
 
 # Define the name of your JSON file
-$jsonFileName = "manifest.json" # Replace with the actual name of your JSON file
-$jsonFilePath = Join-Path $AssetsDir $jsonFileName
-$tempJsonFilePath = Join-Path $TempStaging "$jsonFileName"
-$modifiedJsonIncluded = $false
+$fileName = "manifest.json"
+$rawJsonManifest = Join-Path $AssetsDir $fileName
+$formattedJsonManifest = Join-Path $TempZipDir $fileName
 
-# Check if the JSON file exists and process it
-if (Test-Path $jsonFilePath) {
+if (Test-Path $rawJsonManifest) {
     try {
         # Read the content of the JSON file
-        $jsonContent = Get-Content $jsonFilePath -Raw
+        $jsonContent = Get-Content $rawJsonManifest -Raw
 
         # Replace the placeholder "$(version)" with the $Version parameter
         $modifiedJsonContent = $jsonContent -replace '\$\(version\)', $Version
 
         # Write the modified content to a temporary JSON file
-        $modifiedJsonContent | Out-File $tempJsonFilePath -Encoding UTF8
-
-        # Add the temporary JSON file to the list of files to be zipped
-        $assetsFiles += $tempJsonFilePath
-        $modifiedJsonIncluded = $true
+        $modifiedJsonContent | Out-File $formattedJsonManifest -Encoding UTF8
     } catch {
         Write-Error "An error occurred while processing the JSON file: $_"
     }
@@ -48,65 +65,33 @@ if (Test-Path $jsonFilePath) {
     Write-Warning "JSON file '$jsonFileName' not found in '$AssetsDir'."
 }
 
-# Get all files from the assets directory recursively
-$assetsFiles = Get-ChildItem -Path $AssetsDir -Recurse -File | Where-Object {$_.Name -ne "manifest.json"} | Select-Object -ExpandProperty FullName
+# -- -- -- Collect asset and program files
 
-# Create the publish output directory if it doesn't exist
-New-Item -ItemType Directory -Path $PublishOutputDir -Force
-
-# Adds the asset files
+# Add all files from the assets directory recursively
+$assetsFiles += Get-ChildItem -Path $AssetsDir -Recurse -File | Where-Object {$_.Name -ne "manifest.json"} | Select-Object -ExpandProperty FullName
 
 # Add the TextureSwapper.dll and TextureSwapper.pdb from PublishOutputDir
-$programFiles += "$TargetDir\$AssemblyName.dll", "$TargetDir\$AssemblyName.pdb"
-
-# -- -- -- 
-
-#$depdenciesFolder = "$TargetDir\publish"
-$depdenciesFolder = "$TargetDir"
+$programFiles += "$BuildOutputDir\$AssemblyName.dll", "$BuildOutputDir\$AssemblyName.pdb"
 
 ## Endec Stuff
-$programFiles += "$depdenciesFolder\Endec.dll", "$depdenciesFolder\Endec.Json.dll"
+$programFiles += "$BuildOutputDir\Endec.dll", "$BuildOutputDir\Endec.Json.dll"
 
-$programFiles += "$depdenciesFolder\StandardSocketsHttpHandler.dll"
+$programFiles += "$BuildOutputDir\StandardSocketsHttpHandler.dll"
 
-# Create the compressed archive
-$DestinationPath = Join-Path $PublishOutputDir "$AssemblyName-$Version.zip"
-#Compress-Archive -Path $allFiles -DestinationPath $DestinationPath -Force
+# -- -- -- Copy collected files to temp dir 
 
-# Copy files while recreating the subfolder structure
-foreach ($filePath in $assetsFiles) {
-    # Calculate relative path by removing the BaseDir from the Full Path
-    $escapedBaseDir = [Regex]::Escape($AssetsDir)
-    $relativePath = ($filePath -replace $escapedBaseDir, "").TrimStart("\")
+# Copy assets files to the temp staging directory
+foreach ($filePath in $assetsFiles) { CopyTo -rootDir $AssetsDir -outputDir $TempZipDir -filePath $filePath }
 
-    # Define and create the target subfolder in Staging
-    $targetPath = Join-Path $TempStaging $relativePath
-    $targetDir = Split-Path $targetPath
+# Copy program files to plugins folder 
+foreach ($programFile in $programFiles) { Copy-Item -Path $programFile -Destination "$TempZipDir\plugins"  }
 
-    if (!(Test-Path $targetDir)) {
-        New-Item -ItemType Directory -Path $targetDir -Force | Out-Null
-    }
+# -- -- --
 
-    # Copy the file to its new home in the staging tree
-    Copy-Item -Path $filePath -Destination $targetPath
-}
+$OutputZip = Join-Path $PublishOutputDir "$AssemblyName-$Version.zip"
 
-foreach ($programFile in $programFiles) {
-    # Copy the file to its new home in the staging tree
-    Copy-Item -Path $programFile -Destination "$TempStaging\plugins"
-}
+Compress-Archive -Path "$TempZipDir\*" -DestinationPath $OutputZip -Force
 
-# Zip the staging folder content
-Compress-Archive -Path "$TempStaging\*" -DestinationPath $DestinationPath -Force
+Remove-Item $TempZipDir -Recurse -Force # Delete contents of temp zip dir
 
-# Clean up
-Remove-Item $TempStaging -Recurse -Force
-
-Write-Host "Successfully created archive: $DestinationPath"
-
-# Remove the temporary JSON file after archiving (if it was created)
-if ($modifiedJsonIncluded -and (Test-Path $tempJsonFilePath)) {
-    Remove-Item $tempJsonFilePath -Force
-
-    Write-Host "Removed temp JSON manifest: $tempJsonFilePath"
-}
+Write-Host "Successfully created archive: $OutputZip"

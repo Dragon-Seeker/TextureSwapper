@@ -23,7 +23,7 @@
     <!--    <SolutionDir Condition="'$(SolutionDir)' == ''">$(MSBuildThisFileDirectory)..\</SolutionDir>-->
     <PublishOutputDir>$(MSBuildThisFileDirectory)PublishOutput</PublishOutputDir>
     <AssetsDir>$(MSBuildThisFileDirectory)assets</AssetsDir>
-    <LibDir>.\libs</LibDir>
+    <LibDir>$(MSBuildThisFileDirectory)\..\libs</LibDir>
     
     <NetMagickVersion>14.10.1</NetMagickVersion>
     <NetMagickType>Magick.NET-Q8-x64</NetMagickType>
@@ -229,6 +229,6 @@
       <ProjectDir>$(MSBuildThisFileDirectory)\</ProjectDir>
       <RealTargetDir>$(TargetDir)\</RealTargetDir>
     </PropertyGroup>
-    <Exec Command="powershell -File &quot;$(MSBuildProjectDirectory)\PublishTask.ps1&quot; -PublishOutputDir &quot;$(PublishOutputDir)&quot; -ProjectDir &quot;$(ProjectDir)&quot; -TargetDir &quot;$(RealTargetDir)&quot; -AssemblyName &quot;$(AssemblyName)&quot; -Version &quot;$(Version)&quot;" />
+    <Exec Command="powershell -File &quot;$(MSBuildProjectDirectory)\PublishTask.ps1&quot; -PublishOutputDir &quot;$(PublishOutputDir)&quot; -ProjectDir &quot;$(ProjectDir)&quot; -BuildOutputDir &quot;$(RealTargetDir)&quot; -AssemblyName &quot;$(AssemblyName)&quot; -Version &quot;$(Version)&quot;" />
   </Target>
 </Project>
