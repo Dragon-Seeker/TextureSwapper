@@ -26,5 +26,6 @@ public class MediaRatingUtils {
 public enum MediaRating {
     SAFE,
     QUESTIONABLE,
-    EXPLICIT
+    EXPLICIT,
+    UNKNOWN
 }

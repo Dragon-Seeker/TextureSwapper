@@ -45,6 +45,7 @@ public class ConfigInstance : LayeredConfigFile {
     
     public readonly Getter<IList<string>> blacklistedTags;
     public readonly Getter<bool> enableGlobalBlacklist;
+    public readonly Getter<bool> enablePlatformBlacklist;
     public readonly Getter<IList<string>> whitelistedTags;
     
     private readonly ConfigFile primaryConfigFile;
@@ -71,6 +72,9 @@ public class ConfigInstance : LayeredConfigFile {
             ).bind(
                 "EnableGlobalBlacklist", "Enables the Global Blacklist for generally unsafe queries, disable at your own risk when allowing Restrictive Queries",
                 UserSettings.property((data) => data.enableGlobalBlacklist, (data, v) => data.enableGlobalBlacklist = v).setGetter(out enableGlobalBlacklist)
+            ).bind(
+                "EnablePlatformBlacklist", "Enables the Platforms Blacklist for generally unsafe queries if an account credentials exists",
+                UserSettings.property((data) => data.enablePlatformBlacklist, (data, v) => data.enablePlatformBlacklist = v).setGetter(out enablePlatformBlacklist)
             ).bind(
                 "DisallowedTags", "A list of tags that are disallowed from being shown, Seperated by commas (,) without any spaces",
                 UserSettings.property((data) => data.blackListData, (data, v) => data.blackListData = v).setGetter(out blacklistedTags, tagDataUnpacker), tagConvertor

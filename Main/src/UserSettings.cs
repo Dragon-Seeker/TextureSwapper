@@ -182,6 +182,7 @@ public static class UserSettings {
         bool debugLogging = false, 
         bool restrictiveQueries = true, 
         bool enableGlobalBlacklist = true,
+        bool enablePlatformBlacklist = true,
         TagFilteringData? blackListData = null, 
         TagFilteringData? whiteListData = null, 
         IDictionary<string, ApplicationCredentials>? applicationCredentials = null, 
@@ -198,6 +199,8 @@ public static class UserSettings {
         public bool debugLogging { get; internal set => updateSettings(this, () => field = value); } = debugLogging;
         public bool restrictiveQueries { get; internal set => updateSettings(this, () => field = value); } = restrictiveQueries;
         public bool enableGlobalBlacklist { get; internal set => updateSettings(this, () => field = value); } = enableGlobalBlacklist;
+        // TODO: BETTER ALLOW PER PLATFORM CONTROL OF THIS?
+        public bool enablePlatformBlacklist { get; internal set => updateSettings(this, () => field = value); } = enableGlobalBlacklist;
         public TagFilteringData blackListData { get; internal set => updateSettings(this, () => field = value); } = blackListData ?? new ();
         public TagFilteringData whiteListData { get; internal set => updateSettings(this, () => field = value); } = whiteListData ?? new ();
         public IDictionary<string, ApplicationCredentials> applicationCredentials { get; internal set => updateSettings(this, () => field = value); } = applicationCredentials ?? new Dictionary<string, ApplicationCredentials>();
@@ -219,6 +222,7 @@ public static class UserSettings {
             Endec.BOOLEAN.fieldOf<SettingsData>("debugging_logging", s => s.debugLogging),
             Endec.BOOLEAN.fieldOf<SettingsData>("restrictive_queries", s => s.restrictiveQueries),
             Endec.BOOLEAN.fieldOf<SettingsData>("enable_global_blacklist", s => s.enableGlobalBlacklist),
+            Endec.BOOLEAN.fieldOf<SettingsData>("enable_platform_blacklist", s => s.enableGlobalBlacklist),
             TagFilteringData.ENDEC.fieldOf<SettingsData>("blacklist", s => s.blackListData),
             TagFilteringData.ENDEC.fieldOf<SettingsData>("whitelist", s => s.whiteListData),
             ApplicationCredentials.ENDEC.mapOf().fieldOf<SettingsData>("account_credentials", s => s.applicationCredentials),
@@ -230,8 +234,8 @@ public static class UserSettings {
             Endec.BOOLEAN.fieldOf<SettingsData>("show_tags_in_tooltip_info", s => s.showTagsInTooltipInfo),
             Endec.BOOLEAN.fieldOf<SettingsData>("show_debug_tooltip_info", s => s.showDebugTooltipInfo),
             Endec.BOOLEAN.fieldOf<SettingsData>("send_tooltip_info_to_log", s => s.sendTooltipInfoToLog),
-            (debugLogging, restrictiveQueries, enableGlobalBlacklist, blackListData, whiteListData, applicationCredentials, alternativeCensorImages, tooltipRange, tooltipWaitTime, showBasicTooltipInfo, showDescriptionInTooltipInfo, showTagsInTooltipInfo, showDebugTooltipInfo, sendTooltipInfoToLog) 
-                => new SettingsData(debugLogging, restrictiveQueries, enableGlobalBlacklist, blackListData, whiteListData, applicationCredentials, alternativeCensorImages, tooltipRange, tooltipWaitTime, showBasicTooltipInfo, showDescriptionInTooltipInfo, showTagsInTooltipInfo, showDebugTooltipInfo, sendTooltipInfoToLog)
+            (debugLogging, restrictiveQueries, enableGlobalBlacklist, enablePlatformBlacklist, blackListData, whiteListData, applicationCredentials, alternativeCensorImages, tooltipRange, tooltipWaitTime, showBasicTooltipInfo, showDescriptionInTooltipInfo, showTagsInTooltipInfo, showDebugTooltipInfo, sendTooltipInfoToLog) 
+                => new SettingsData(debugLogging, restrictiveQueries, enableGlobalBlacklist, enablePlatformBlacklist, blackListData, whiteListData, applicationCredentials, alternativeCensorImages, tooltipRange, tooltipWaitTime, showBasicTooltipInfo, showDescriptionInTooltipInfo, showTagsInTooltipInfo, showDebugTooltipInfo, sendTooltipInfoToLog)
         );
 
         public static SettingsData parseOrEmpty(string rawData, Action<string, SettingsData> onError) {

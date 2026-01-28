@@ -187,6 +187,10 @@ public class SwapperComponentSetupUtils {
         return false;
     }
 
+    public delegate bool CensorshipTester(MediaQueryResult result);
+
+    public static event CensorshipTester? IS_CENSORED_EVENT;
+    
     public static bool isCensored(MediaQueryResult? queryResult) {
         if (Plugin.config.shouldRestrictQueries() && queryResult is RatedMediaResult queryRating && !queryRating.isSafe()) {
             return true;
@@ -197,8 +201,8 @@ public class SwapperComponentSetupUtils {
                 if (taggedMediaResult.hasTag(tag)) return true;
             }
         }
-
-        return false;
+        
+        return queryResult != null && (IS_CENSORED_EVENT?.Invoke(queryResult) ?? false);
     }
 }
 
