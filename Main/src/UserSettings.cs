@@ -200,7 +200,7 @@ public static class UserSettings {
         public bool restrictiveQueries { get; internal set => updateSettings(this, () => field = value); } = restrictiveQueries;
         public bool enableGlobalBlacklist { get; internal set => updateSettings(this, () => field = value); } = enableGlobalBlacklist;
         // TODO: BETTER ALLOW PER PLATFORM CONTROL OF THIS?
-        public bool enablePlatformBlacklist { get; internal set => updateSettings(this, () => field = value); } = enableGlobalBlacklist;
+        public bool enablePlatformBlacklist { get; internal set => updateSettings(this, () => field = value); } = enablePlatformBlacklist;
         public TagFilteringData blackListData { get; internal set => updateSettings(this, () => field = value); } = blackListData ?? new ();
         public TagFilteringData whiteListData { get; internal set => updateSettings(this, () => field = value); } = whiteListData ?? new ();
         public IDictionary<string, ApplicationCredentials> applicationCredentials { get; internal set => updateSettings(this, () => field = value); } = applicationCredentials ?? new Dictionary<string, ApplicationCredentials>();

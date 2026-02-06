@@ -8,9 +8,10 @@ public class MediaRatingUtils {
 
     public static string toCharacter(MediaRating rating) {
         return rating switch {
-                MediaRating.SAFE => "s",
-                MediaRating.QUESTIONABLE => "q",
-                MediaRating.EXPLICIT => "e",
+            MediaRating.SAFE => "s",
+            MediaRating.QUESTIONABLE => "q",
+            MediaRating.EXPLICIT => "e",
+            MediaRating.UNKNOWN => "u"
         };
     }
     
@@ -18,6 +19,7 @@ public class MediaRatingUtils {
         return rating.ToLower() switch {
                 "s" or "safe" =>  MediaRating.SAFE,
                 "q" or "questionable" => MediaRating.QUESTIONABLE,
+                "u" or "unknown" => MediaRating.UNKNOWN,
                 _ => MediaRating.EXPLICIT,
         };
     }

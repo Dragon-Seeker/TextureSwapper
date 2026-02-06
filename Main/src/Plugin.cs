@@ -317,7 +317,7 @@ public class Plugin : BaseUnityPlugin {
          
          if (!Directory.Exists(targetDir)) continue;
          
-         var jsonFiles = Directory.GetFiles(targetDir, "*.json");
+         List<string> jsonFiles = [..Directory.GetFiles(targetDir, "*.json"), ..Directory.GetFiles(targetDir, "*.json5")];
          
          foreach (var jsonFile in jsonFiles) {
             try {
